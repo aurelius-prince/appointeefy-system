@@ -25,7 +25,7 @@ import AdminSubscription from '../pages/admin/AdminSubscription'
 import AdminAnalytics from '../pages/admin/AdminAnalytics'
 import AdminLogs from '../pages/admin/AdminLogs'
 import AdminBookingPage from '../pages/admin/AdminBookingPage'
-import AdminServices from '../pages/admin/AdminServices'
+import AdminSupport from '../pages/admin/AdminSupport'
 
 // Super Admin
 import SuperAdminLayout from '../components/superadmin/SuperAdminLayout'
@@ -50,8 +50,8 @@ export default function AppRouter() {
   return (
     <BrowserRouter>
       <SuperAdminProvider>
-      <NotificationProvider>
       <AuthProvider>
+      <NotificationProvider>
         <Routes>
           {/* Public Booking Page */}
           <Route path="/book/:slug" element={<BookingPage />} />
@@ -97,6 +97,7 @@ export default function AppRouter() {
             <Route path="/logs"         element={<AdminLogs />} />
             <Route path="/subscription" element={<AdminSubscription />} />
             <Route path="/profile"      element={<AdminProfile />} />
+            <Route path="/support"      element={<AdminSupport />} />
           </Route>
 
           {/* Super Admin Routes */}
@@ -115,8 +116,8 @@ export default function AppRouter() {
           <Route path="/unauthorized" element={<Unauthorized />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </AuthProvider>
       </NotificationProvider>
+      </AuthProvider>
       </SuperAdminProvider>
     </BrowserRouter>
   )

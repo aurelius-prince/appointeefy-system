@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { ShieldCheck, Eye, EyeOff, ArrowRight } from 'lucide-react'
+import { Eye, EyeOff, ArrowRight } from 'lucide-react'
+import AppLogo from '../../assets/Logo.png'
 
 export default function SuperAdminLogin() {
   const { login } = useAuth()
@@ -27,16 +28,14 @@ export default function SuperAdminLogin() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8">
+    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm w-full max-w-sm p-8">
 
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-14 h-14 bg-gray-900 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <ShieldCheck size={26} className="text-white" />
-          </div>
+          <img src={AppLogo} alt="Appointeefy" className="h-14 max-w-48 object-contain mx-auto mb-4" />
           <h1 className="text-xl font-extrabold text-gray-900">Super Admin</h1>
-          <p className="text-gray-500 text-sm mt-1">Appointeefy Control Panel</p>
+          <p className="text-gray-500 text-sm mt-1">Secure administration</p>
         </div>
 
         {error && (

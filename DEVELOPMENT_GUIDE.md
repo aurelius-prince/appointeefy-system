@@ -125,7 +125,7 @@ For public booking, verify the provider slug, account lookup, services, pet type
 - Move provider booking-page settings into account-scoped database records.
 - Define and document database migrations, RLS policies, storage policies, and foreign keys.
 - Standardize appointment, subscription, discount, and notification schemas.
-- Complete payment verification, support, client booking, and client tracking workflows.
+- Make payment verification and subscription activation atomic; complete support, client booking, and client tracking workflows.
 - Add server-side booking validation and price recalculation.
 - Add tests for route protection, account isolation, price calculation, overlap detection, and status transitions.
 - Add consistent loading, empty, error, and retry states for database operations.
@@ -143,3 +143,22 @@ Use `http://localhost:5173/` as the canonical Appointeefy provider app and `http
 For subscription testing, select a plan, confirm the order summary and quantity/duration calculation, then use **Proceed to payment**. Verify that a transaction appears in history immediately with an awaiting-payment status, that the payment modal opens with the GCash QR and proof/reference fields, and that closing and reopening the transaction preserves the flow. Test cancellation, failed status messaging, and the one-hour expiry notice without submitting real payment data.
 
 For appointment testing, open a booking card, open **Appointment Details**, and test status actions, receipt, cancel, and close. The receipt should open as a centered page-level modal on mobile and desktop without being clipped by the admin shell or scrolling the background. Close the receipt, then confirm the appointment details modal remains available.
+
+## 13. Super Admin Test Account
+
+- **Email:** `superadmin2@appointeefy.com`
+- **Purpose:** Supabase Auth test account for local Super Admin verification.
+- **Password:** Managed as a local secret and intentionally excluded from this repository and its documentation.
+- **Role metadata:** Includes `role: "superadmin"` so it can access `/superadmin`.
+
+## 14. Super Admin Payments and Analytics
+
+The Super Admin shell uses the Appointeefy logo and a neutral administration layout. `/superadmin/payments` loads all provider payment rows and resolves the current provider identity from `accounts` using `account_id`. Tabs show `awaiting_payment`, `pending`, `verified`, `rejected`, and `failed` separately; only submitted `pending` requests with proof and a matching provider account can be verified. Verification extends the subscription by the purchased `quantity` and updates the matching account status. `/superadmin/analytics` counts the same payment statuses and excludes admin-created Manual records from received payment totals.
+
+**Needs Verification:** The payment status update and account activation are two Supabase writes. A database transaction or RPC should make them atomic before relying on them for production billing. The frontend attempts to restore the payment to `pending` if account activation fails, but it cannot guarantee atomicity if that restore also fails.
+
+## 15. Notifications, Support Tickets, and Payment Expiry
+
+`supabase/support_and_notifications.sql` was applied to the Appointeefy production Supabase project on October 22, 2026. It creates account-scoped `support_tickets` and `support_messages` with RLS, protects notifications so providers only read announcements and their own direct messages, and schedules `awaiting_payment` transactions to become `failed` after one hour. The scheduled job runs every minute, so a transaction may display as awaiting for up to about one additional minute. The initial migration marked three overdue payment attempts as failed. Verification showed both support tables, nine relevant RLS policies, one active expiry job, and zero overdue awaiting payments.
+
+The provider notification bell reads the live `notifications` table, refreshes every 30 seconds, and stores read markers per account in that browser's local storage. The provider Help & Support page shows FAQs, ticket history, a new-ticket form, and ticket updates. The Super Admin Support page reviews tickets, changes status, and replies inside each ticket; a reply also sends a direct notification to the provider account. A database trigger limits providers to three active tickets and a ten-minute gap between new tickets.

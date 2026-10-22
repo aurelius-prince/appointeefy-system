@@ -5,7 +5,7 @@ import { useNotifications } from '../../context/NotificationContext'
 import { supabase } from '../../lib/supabase'
 import {
   LayoutDashboard, CalendarDays,
-  Users, Settings, LogOut, CalendarCheck, Menu, ChevronLeft, X, Bell, Megaphone, MessageSquare, ScrollText, Globe, CreditCard, BarChart2, Lock, AlertCircle
+  Users, Settings, LogOut, Menu, ChevronLeft, X, Bell, Megaphone, MessageSquare, ScrollText, Globe, CreditCard, BarChart2, Lock, AlertCircle, LifeBuoy
 } from 'lucide-react'
 import AppLogo from '../../assets/Logo.png'
 
@@ -17,6 +17,7 @@ const navItems = [
   { to: '/analytics',    icon: BarChart2,       label: 'Analytics',    lockedOn: ['waitlisted', 'expired', 'suspended'] },
   { to: '/logs',         icon: ScrollText,      label: 'Logs',         lockedOn: ['waitlisted', 'expired', 'suspended'] },
   { to: '/profile',      icon: Settings,        label: 'Profile',      lockedOn: [] },
+  { to: '/support',      icon: LifeBuoy,        label: 'Help & Support', lockedOn: [] },
 ]
 
 const fmtDate = (iso) => {
@@ -55,7 +56,7 @@ export default function AdminLayout() {
   const isPending = accountStatus === 'waitlisted'
 
   const accountId = user?.account_id
-  const { getForAccount, getUnreadCount, markAsRead } = useNotifications()
+  const { getForAccount, getUnreadCount, markAsRead, error: notificationError, refresh: refreshNotifications } = useNotifications()
   const notifs = accountId ? getForAccount(accountId) : []
   const unreadCount = accountId ? getUnreadCount(accountId) : 0
 
@@ -86,7 +87,7 @@ export default function AdminLayout() {
     if (lockedPaths.some(p => location.pathname.startsWith(p))) {
       navigate('/dashboard', { replace: true })
     }
-  }, [isLocked, location.pathname])
+  }, [isLocked, location.pathname, navigate])
 
   const subBadge = (accountStatus === 'monthly' || accountStatus === 'annual')
     ? { label: accountStatus === 'monthly' ? 'Monthly' : 'Annual', cls: 'bg-green-100 text-green-700', dot: 'bg-green-500' }
@@ -158,7 +159,7 @@ export default function AdminLayout() {
 
         </div>
         <nav className="flex-1 py-4 space-y-1 px-2 overflow-y-auto">
-          {navItems.map(({ to, icon: Icon, label, lockedOn }, index) => {
+          {navItems.map(({ to, icon: Icon, label, lockedOn }) => {
             const isLocked = lockedOn.includes(accountStatus)
             return isLocked ? (
               <div key={to}>
@@ -260,7 +261,7 @@ export default function AdminLayout() {
                   </div>
                   <div className="max-h-80 overflow-y-auto divide-y divide-gray-50">
                     {notifs.length === 0 && (
-                      <p className="text-sm text-gray-400 text-center py-8">No notifications yet.</p>
+                      <p className="text-sm text-gray-400 text-center py-8">{notificationError || 'No notifications yet.'}</p>
                     )}
                     {notifs.map((n) => {
                       const isUnread = !n.readBy.includes(accountId)
@@ -288,6 +289,7 @@ export default function AdminLayout() {
                       )
                     })}
                   </div>
+                  {notificationError && <button onClick={refreshNotifications} className="w-full border-t border-gray-100 py-2 text-xs font-semibold text-blue-600">Retry</button>}
                 </div>
               )}
             </div>
@@ -368,8 +370,8 @@ export default function AdminLayout() {
 
       {/* Notification Detail Modal */}
       {selectedNotif && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedNotif(null)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+        <div className="admin-notification-backdrop fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4" onClick={() => setSelectedNotif(null)}>
+          <div role="dialog" aria-modal="true" aria-label="Notification details" className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[calc(100dvh-32px)] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <div className="flex items-center gap-3">
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${selectedNotif.type === 'announcement' ? 'bg-yellow-100 text-yellow-600' : 'bg-blue-100 text-blue-600'}`}>

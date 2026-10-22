@@ -4,7 +4,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import { Users, TrendingUp, CalendarCheck, UserCheck, DollarSign } from 'lucide-react'
-import StatCard from '../../components/common/StatCard'
+import StatCard from '../../components/superadmin/SuperStatCard'
 import PageHeader from '../../components/common/PageHeader'
 import { supabase } from '../../lib/supabase'
 
@@ -16,6 +16,13 @@ const STATUS_COLORS = {
   expired:   '#ef4444',
   suspended: '#6b7280',
 }
+const PAYMENT_STATES = [
+  { key: 'awaiting_payment', label: 'Awaiting payment', color: 'bg-orange-500' },
+  { key: 'pending', label: 'For review', color: 'bg-amber-500' },
+  { key: 'verified', label: 'Verified', color: 'bg-emerald-600' },
+  { key: 'rejected', label: 'Rejected', color: 'bg-red-500' },
+  { key: 'failed', label: 'Failed', color: 'bg-slate-500' },
+]
 
 function ChartCard({ title, subtitle, children }) {
   return (
@@ -38,13 +45,15 @@ export default function SuperAnalytics() {
   const [appointments, setAppointments] = useState([])
   const [payments, setPayments]         = useState([])
   const [loading, setLoading]           = useState(true)
+  const [loadError, setLoadError]       = useState('')
 
   useEffect(() => {
     Promise.all([
       supabase.from('accounts').select('id, name, status, created_at, subscribed_until, trial_ends'),
       supabase.from('appointments').select('id, status, created_at'),
       supabase.from('payments').select('id, amount, status, plan, method, created_at, account_id, name'),
-    ]).then(([{ data: accs }, { data: apts }, { data: pays }]) => {
+    ]).then(([{ data: accs, error: accountError }, { data: apts, error: appointmentError }, { data: pays, error: paymentError }]) => {
+      if (accountError || appointmentError || paymentError) setLoadError('Some analytics could not be loaded. Please refresh the page.')
       if (accs)  setAccounts(accs)
       if (apts)  setAppointments(apts)
       if (pays)  setPayments(pays)
@@ -53,12 +62,14 @@ export default function SuperAnalytics() {
   }, [])
 
   // ── Revenue ──────────────────────────────────────────────────────────────
-  const verifiedPayments  = payments.filter(p => p.status === 'verified')
-  const totalRevenue      = verifiedPayments.reduce((s, p) => s + (p.amount || 0), 0)
+  const approvedPayments  = payments.filter(p => p.status === 'verified')
+  const verifiedPayments  = approvedPayments.filter(p => p.method !== 'Manual')
+  const totalRevenue      = verifiedPayments.reduce((s, p) => s + Number(p.amount || 0), 0)
+  const paymentCounts = Object.fromEntries(PAYMENT_STATES.map(({ key }) => [key, payments.filter(p => p.status === key).length]))
 
   // Manually activated = verified payments with method 'Manual'
-  const manualPayments = verifiedPayments.filter(p => p.method === 'Manual')
-  const manualRevenue  = manualPayments.reduce((s, p) => s + (p.amount || 0), 0)
+  const manualPayments = approvedPayments.filter(p => p.method === 'Manual')
+  const manualRevenue  = manualPayments.reduce((s, p) => s + Number(p.amount || 0), 0)
 
   // ── User stats ───────────────────────────────────────────────────────────
   const stats = {
@@ -81,7 +92,7 @@ export default function SuperAnalytics() {
       const verified = verifiedPayments.filter(p => {
         const c = new Date(p.created_at)
         return c.getFullYear() === y && c.getMonth() === m
-      }).reduce((s, p) => s + (p.amount || 0), 0)
+      }).reduce((s, p) => s + Number(p.amount || 0), 0)
       months.push({ month: label, verified })
     }
     return months
@@ -128,7 +139,7 @@ export default function SuperAnalytics() {
 
   // ── Payment method breakdown ──────────────────────────────────────────────
   const methodMap = {}
-  verifiedPayments.forEach(p => { methodMap[p.method] = (methodMap[p.method] || 0) + (p.amount || 0) })
+  verifiedPayments.forEach(p => { methodMap[p.method || 'Unknown'] = (methodMap[p.method || 'Unknown'] || 0) + Number(p.amount || 0) })
   const methodData = Object.entries(methodMap).map(([method, amount]) => ({ method, amount }))
 
   // ── Plan breakdown ────────────────────────────────────────────────────────
@@ -147,19 +158,26 @@ export default function SuperAnalytics() {
   return (
     <div>
       <PageHeader title="Analytics" subtitle="System-wide performance overview" />
+      {loadError && <p role="alert" className="mb-5 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{loadError}</p>}
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         <StatCard title="Total Users"    value={stats.total}                    icon={Users}        color="blue" />
-        <StatCard title="Active Users"   value={stats.paying}                   icon={UserCheck}    color="green" />
+        <StatCard title="Paid Plans"     value={stats.paying}                   icon={UserCheck}    color="green" />
         <StatCard title="On Trial"       value={stats.trial}                    icon={TrendingUp}   color="purple" />
-        <StatCard title="Total Revenue"  value={`₱${totalRevenue.toLocaleString()}`} icon={DollarSign}   color="yellow" />
+        <StatCard title="Verified Payments" value={`₱${totalRevenue.toLocaleString()}`} icon={DollarSign} color="yellow" />
         <StatCard title="Appointments"   value={appointments.length}            icon={CalendarCheck} color="blue" />
       </div>
 
+      <ChartCard title="Payment requests" subtitle="Same transaction statuses shown in Payments">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+          {PAYMENT_STATES.map(({ key, label, color }) => <div key={key} className="rounded-xl border border-slate-200 p-3"><div className={`mb-2 h-1 w-8 rounded-full ${color}`} /><p className="text-2xl font-semibold text-slate-900">{paymentCounts[key]}</p><p className="text-xs font-medium text-slate-600">{label}</p></div>)}
+        </div>
+      </ChartCard>
+
       {/* Revenue + Users row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
-        <ChartCard title="Monthly Revenue" subtitle="Revenue from verified payments (last 6 months)">
+        <ChartCard title="Monthly Payments" subtitle="Verified customer payments, excluding manual activations (last 6 months)">
           {monthlyRevenue.every(m => m.verified === 0)
             ? empty('No payment data yet.')
             : <ResponsiveContainer width="100%" height={200}>
@@ -202,7 +220,7 @@ export default function SuperAnalytics() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
 
         {/* Payment method breakdown */}
-        <ChartCard title="Revenue by Method" subtitle="Verified payments only">
+        <ChartCard title="Payments by Method" subtitle="Verified customer payments; manual activations excluded">
           {methodData.length === 0
             ? empty('No verified payments yet.')
             : <div className="space-y-3 mt-1">
@@ -219,7 +237,7 @@ export default function SuperAnalytics() {
                   </div>
                 ))}
                 <div className="pt-2 border-t border-gray-100 flex justify-between text-sm font-semibold text-gray-800">
-                  <span>Total Verified</span>
+                  <span>Total Received</span>
                   <span>₱{totalRevenue.toLocaleString()}</span>
                 </div>
               </div>
@@ -227,7 +245,7 @@ export default function SuperAnalytics() {
         </ChartCard>
 
         {/* Manually activated */}
-        <ChartCard title="Manually Activated" subtitle="Activated by super admin (no payment proof)">
+        <ChartCard title="Manually Activated" subtitle="Admin-created records; excluded from received payments">
           {manualPayments.length === 0
             ? empty('No manual activations yet.')
             : <div className="space-y-2 max-h-48 overflow-y-auto">
@@ -277,7 +295,7 @@ export default function SuperAnalytics() {
       {/* Appointments + Status Pie */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <ChartCard title="Monthly Appointments" subtitle="Completed vs Cancelled (last 6 months)">
-          <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">⚠️ These are appointment records from individual user accounts — not system-level data.</p>
+          <p className="mb-3 text-xs text-slate-500">Appointments across provider accounts.</p>
           {monthlyAppts.every(m => m.completed === 0 && m.cancelled === 0)
             ? empty('No appointment data yet.')
             : <ResponsiveContainer width="100%" height={200}>

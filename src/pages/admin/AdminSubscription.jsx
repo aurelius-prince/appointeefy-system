@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { CheckCircle, Clock, AlertCircle, X, Upload, ZoomIn, QrCode, CalendarDays, ChevronRight, ReceiptText, ShieldCheck } from 'lucide-react'
 import PageHeader from '../../components/common/PageHeader'
@@ -61,6 +61,11 @@ export default function AdminSubscription() {
   const [historyPage, setHistoryPage] = useState(1)
   const [discounts, setDiscounts] = useState([])
   const accountId = user?.account_id
+  const refreshPayments = useCallback(() => {
+    if (!accountId) return
+    supabase.from('payments').select('*').eq('account_id', accountId).order('created_at', { ascending: false })
+      .then(({ data }) => { if (data) setMyPayments(uniquePayments(data)) })
+  }, [accountId])
 
   const historyPageCount = Math.max(1, Math.ceil(myPayments.length / PAYMENTS_PER_PAGE))
   const currentHistoryPage = Math.min(historyPage, historyPageCount)
@@ -70,11 +75,10 @@ export default function AdminSubscription() {
     if (!accountId) return
     supabase.from('accounts').select('*').eq('id', accountId).single()
       .then(({ data }) => { if (data) setAccount(data) })
-    supabase.from('payments').select('*').eq('account_id', accountId).order('created_at', { ascending: false })
-      .then(({ data }) => { if (data) setMyPayments(uniquePayments(data)) })
+    refreshPayments()
     supabase.from('discounts').select('*').eq('active', true)
       .then(({ data }) => { if (data) setDiscounts(data) })
-  }, [accountId])
+  }, [accountId, refreshPayments])
 
   // Expire unfinished GCash transactions after one hour. The periodic check
   // keeps the history accurate while this page is open; the same rule should
@@ -194,8 +198,8 @@ export default function AdminSubscription() {
     const planLabel = selectedPlan === 'monthly' ? 'Monthly' : 'Annual'
     const enteredReference = paymentReference.trim()
     if (draftPayment?.id) {
-      const { data, error } = await supabase.from('payments').update({ reference: enteredReference, proof, status: 'pending' }).eq('id', draftPayment.id).select().single()
-      if (error) { setPaymentError('Payment proof could not be submitted. Please try again.'); setSavingPayment(false); return }
+      const { data, error } = await supabase.from('payments').update({ reference: enteredReference, proof, status: 'pending' }).eq('id', draftPayment.id).eq('status', 'awaiting_payment').gt('created_at', new Date(Date.now() - 60 * 60 * 1000).toISOString()).select().maybeSingle()
+      if (error || !data) { setPaymentError('This transaction has expired or was cancelled. Start a new transaction to submit your payment proof.'); setSavingPayment(false); refreshPayments(); return }
       setMyPayments(previous => previous.map(payment => payment.id === draftPayment.id ? (data || { ...payment, status: 'pending', proof }) : payment))
       setSubmittedPayment(data || { ...draftPayment, status: 'pending' })
       setSubmitted(true)
@@ -277,6 +281,11 @@ export default function AdminSubscription() {
 
   const continuePayment = (payment) => {
     if (payment.status !== 'awaiting_payment') return
+    if (Date.now() - new Date(payment.created_at).getTime() >= 60 * 60 * 1000) {
+      setPaymentError('This transaction has expired. Start a new transaction to submit your payment proof.')
+      refreshPayments()
+      return
+    }
     setSelectedPlan((payment.plan || '').toLowerCase() === 'annual' ? 'annual' : 'monthly')
     setQuantity(Math.max(1, Number(payment.quantity) || 1))
     setDraftPayment(payment)

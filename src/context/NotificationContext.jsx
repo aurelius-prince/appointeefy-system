@@ -1,82 +1,63 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { useAuth } from './AuthContext'
+import { supabase } from '../lib/supabase'
 
 const NotificationContext = createContext(null)
-
-const daysAgo = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString() }
-
-const INIT_NOTIFICATIONS = [
-  { id: 1, type: 'announcement', title: 'System Maintenance', message: 'Scheduled maintenance on Sunday 2am-4am. Expect brief downtime.', to: 'all', toName: 'All Providers', sentAt: daysAgo(2), readBy: [], image: null },
-  { id: 2, type: 'message', title: 'Subscription Reminder', message: 'Hi Juan! Your subscription expires soon. Please renew to avoid interruption.', to: 'CAL-00002', toName: 'Juan Dela Cruz', sentAt: daysAgo(1), readBy: [], image: null },
-  { id: 3, type: 'announcement', title: 'New Feature: Calendar Sync', message: 'You can now sync your calendar with Google Calendar. Check your settings!', to: 'all', toName: 'All Providers', sentAt: daysAgo(5), readBy: ['CAL-00002'], image: null },
-]
-
-const STORAGE_KEY = 'cal_notifications'
-
-const loadNotifs = () => {
-  try {
-    const v = localStorage.getItem(STORAGE_KEY)
-    return v ? JSON.parse(v) : INIT_NOTIFICATIONS
-  } catch { return INIT_NOTIFICATIONS }
-}
-
-const saveNotifs = (data) => {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)) } catch {}
+const readKey = accountId => `appointeefy-notification-reads-${accountId}`
+const loadReadIds = accountId => {
+  try { return JSON.parse(localStorage.getItem(readKey(accountId)) || '[]') }
+  catch { return [] }
 }
 
 export function NotificationProvider({ children }) {
-  const [notifications, setNotifications] = useState(loadNotifs)
+  const { user } = useAuth()
+  const accountId = user?.role === 'admin' ? user.account_id : null
+  const [notifications, setNotifications] = useState([])
+  const [readIds, setReadIds] = useState([])
+  const [error, setError] = useState('')
 
-  useEffect(() => { saveNotifs(notifications) }, [notifications])
+  const refresh = useCallback(async () => {
+    if (!accountId) { setNotifications([]); return }
+    const { data, error: fetchError } = await supabase.from('notifications')
+      .select('id, type, title, message, to_account_id, image_url, sent_at')
+      .or(`to_account_id.is.null,to_account_id.eq.${accountId}`)
+      .order('sent_at', { ascending: false })
+    if (fetchError) { setError('Notifications could not be loaded.'); return }
+    setError('')
+    setNotifications((data || []).map(row => ({
+      id: row.id, type: row.type, title: row.title, message: row.message,
+      to: row.to_account_id || 'all', sentAt: row.sent_at, image: row.image_url,
+    })))
+  }, [accountId])
 
-  const sendNotification = ({ type, title, message, to, toName, image }) => {
-    const notif = {
-      id: Date.now(),
-      type,
-      title,
-      message,
-      to,
-      toName,
-      image: image || null,
-      sentAt: new Date().toISOString(),
-      readBy: [],
-    }
-    setNotifications((prev) => [notif, ...prev])
+  useEffect(() => {
+    if (!accountId) return undefined
+    setReadIds(loadReadIds(accountId))
+    refresh()
+    const channel = supabase.channel(`provider-notifications-${accountId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, refresh)
+      .subscribe()
+    const timer = setInterval(refresh, 30000)
+    return () => { clearInterval(timer); supabase.removeChannel(channel) }
+  }, [accountId, refresh])
+
+  const markAsRead = (id, targetAccountId) => {
+    if (!accountId || accountId !== targetAccountId) return
+    setReadIds(previous => {
+      if (previous.includes(id)) return previous
+      const next = [...previous, id]
+      localStorage.setItem(readKey(accountId), JSON.stringify(next))
+      return next
+    })
   }
+  const getForAccount = targetAccountId => targetAccountId === accountId
+    ? notifications.map(item => ({ ...item, readBy: readIds.includes(item.id) ? [accountId] : [] }))
+    : []
+  const getUnreadCount = targetAccountId => getForAccount(targetAccountId).filter(item => item.readBy.length === 0).length
 
-  const deleteNotification = (id) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id))
-  }
-
-  // Called by admin when they read a notification
-  const markAsRead = (notifId, accountId) => {
-    setNotifications((prev) =>
-      prev.map((n) =>
-        n.id === notifId && !n.readBy.includes(accountId)
-          ? { ...n, readBy: [...n.readBy, accountId] }
-          : n
-      )
-    )
-  }
-
-  // Get notifications for a specific provider account
-  const getForAccount = (accountId) =>
-    notifications.filter((n) => n.to === 'all' || n.to === accountId)
-
-  const getUnreadCount = (accountId) =>
-    getForAccount(accountId).filter((n) => !n.readBy.includes(accountId)).length
-
-  return (
-    <NotificationContext.Provider value={{
-      notifications,
-      sendNotification,
-      deleteNotification,
-      markAsRead,
-      getForAccount,
-      getUnreadCount,
-    }}>
-      {children}
-    </NotificationContext.Provider>
-  )
+  return <NotificationContext.Provider value={{ notifications, error, refresh, markAsRead, getForAccount, getUnreadCount }}>
+    {children}
+  </NotificationContext.Provider>
 }
 
 export const useNotifications = () => useContext(NotificationContext)

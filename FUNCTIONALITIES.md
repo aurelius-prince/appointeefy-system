@@ -8,7 +8,7 @@ Appointeefy is a React/Vite appointment-management application focused on pet-si
 - Providers/admins who configure a booking page and manage appointments, customers, services, payments, and subscriptions.
 - Superadmins who manage provider accounts, plans, discounts, payments, analytics, and notifications.
 
-Supabase is used for authentication, database access, storage, and selected realtime subscriptions. Some provider configuration, notifications, and dashboard appointment data still use browser `localStorage`. Exact database schema, row-level-security policies, triggers, and deployment configuration are **Needs Verification** because they are not defined in the reviewed source.
+Supabase is used for authentication, database access, storage, and selected realtime subscriptions. Some provider configuration and dashboard appointment data still use browser `localStorage`. Provider notification read markers are stored locally per account; notification content is loaded from Supabase. The support/notification RLS and payment expiry migration is in `supabase/support_and_notifications.sql`; other database and deployment configuration still needs verification.
 
 ## 2. User Roles and Permissions
 
@@ -192,7 +192,7 @@ Supabase is used for authentication, database access, storage, and selected real
 - **Supabase:** `accounts`, `payments`, `discounts`, `plans`.
 - **Inputs/outputs:** Selected plan, discount code, payment method, proof image, and payment row with `pending` status.
 - **Validation:** Required proof; discount active/expiry/usage/applicability checks in frontend.
-- **Status:** Partially Implemented. Discount field naming differs from the superadmin discount implementation and payment verification is not complete.
+- **Status:** Implemented in the current frontend. Discount field naming needs alignment, and production payment consistency needs an atomic database workflow.
 
 ## 5. Superadmin Functionalities
 
@@ -219,16 +219,17 @@ Supabase is used for authentication, database access, storage, and selected real
 - **Supabase:** `plans`, `accounts`, `payments`.
 - **Status:** Implemented, subject to schema/policy verification.
 
-### ADMIN-004 — Payment Verification Placeholder
+### ADMIN-004 — Payment Verification
 
-- **Description:** Route exists for payment verification but renders a “Payment System Coming Soon” message.
+- **Description:** Lists provider payment transactions by awaiting payment, pending review, verified, rejected, and failed status. Joins payment rows to the current provider account by `account_id`, shows receipt proof and GCash reference, and allows review of submitted proofs. Verification activates the matching account for the purchased plan and quantity.
 - **Role/access:** Superadmin; `/superadmin/payments`.
 - **Related files:** `src/pages/superadmin/SuperPayments.jsx`.
-- **Status:** Not Implemented.
+- **Supabase:** `payments`, `accounts`.
+- **Status:** Implemented in the frontend. Cross-table payment/account updates are not atomic and need a database transaction/RPC for production-grade consistency.
 
 ### ADMIN-005 — Superadmin Analytics
 
-- **Description:** Loads account, appointment, and payment data and presents subscription, revenue, appointment, and user charts.
+- **Description:** Loads account, appointment, and payment data and presents subscription, verified revenue, appointment, and user charts. Payment status counts use the same `payments.status` values shown on the Payments page.
 - **Role/access:** Superadmin; `/superadmin/analytics`.
 - **Related files:** `src/pages/superadmin/SuperAnalytics.jsx`.
 - **Supabase:** `accounts`, `appointments`, `payments`.
@@ -249,14 +250,15 @@ Supabase is used for authentication, database access, storage, and selected real
 - **Role/access:** Superadmin; `/superadmin/notifications`.
 - **Related files:** `src/pages/superadmin/SuperNotifications.jsx`, `src/context/NotificationContext.jsx`.
 - **Supabase:** `notifications`, `accounts`.
-- **Status:** Partially Implemented. Superadmin writes to Supabase, while provider layout reads a browser-storage notification context, so end-to-end delivery is not verified.
+- **Status:** Provider and Super Admin use the same Supabase `notifications` table. Provider reads are scoped to its account and all-provider announcements by live RLS policies. Read markers remain per-browser; delivery to a provider session still needs end-to-end verification.
 
-### ADMIN-008 — Support Placeholder
+### ADMIN-008 — Support Tickets
 
-- **Description:** Support route displays a “Support Coming Soon” message.
-- **Role/access:** Superadmin; `/superadmin/support`.
-- **Related files:** `src/pages/superadmin/SuperSupport.jsx`.
-- **Status:** Not Implemented.
+- **Description:** Providers see FAQs, create tickets, review ticket history, and add updates. Super Admin can review, reply, and change ticket status; replies also create a provider notification. New ticket requests have database-side volume limits.
+- **Role/access:** Provider `/support`; Superadmin `/superadmin/support`.
+- **Related files:** `src/pages/admin/AdminSupport.jsx`, `src/pages/superadmin/SuperSupport.jsx`, `src/lib/support.js`.
+- **Supabase:** `support_tickets`, `support_messages`; migration in `supabase/support_and_notifications.sql` applied October 22, 2026.
+- **Status:** Tables, policies, and Super Admin empty state verified live. Provider ticket creation and reply flow still need end-to-end verification in a provider session.
 
 ## 6. Shared Functionalities
 
@@ -307,7 +309,8 @@ Supabase is used for authentication, database access, storage, and selected real
 | `payments` | Provider payment submissions, manual subscription records, payment analytics |
 | `plans` | Plan price loading, realtime updates, superadmin price edits |
 | `discounts` | Superadmin CRUD and provider discount lookup |
-| `notifications` | Superadmin notification CRUD; provider consumption is not consistently connected |
+| `notifications` | Superadmin notification CRUD and provider account-scoped consumption |
+| `support_tickets`, `support_messages` | Provider support requests and Super Admin replies |
 | `appointeefy-assets` storage bucket | Booking-page image upload, public URL generation, and removal |
 
 Exact columns, foreign keys, indexes, RLS policies, and storage policies are **Needs Verification**.
@@ -321,14 +324,13 @@ Exact columns, foreign keys, indexes, RLS policies, and storage policies are **N
 5. Subscription status affects provider navigation locks and access to several provider routes.
 6. Booking-page editor and public booking page depend on matching browser-storage keys and service records.
 7. Superadmin analytics depends on account, appointment, and payment rows being available and queryable.
-8. Notifications require both a successful superadmin insert and a compatible provider-side read path.
+8. Notifications require a successful Super Admin insert and a provider-side session allowed by account-scoped RLS.
 
 ## 10. Incomplete Functionalities
 
 - Client booking page at `/book` is a placeholder.
 - Client tracking page at `/track` is a placeholder.
-- Superadmin payment verification page is a placeholder.
-- Superadmin support page is a placeholder.
+- Provider support ticket creation and reply flow have not yet been exercised end-to-end in a provider session.
 - Provider notification delivery is not end-to-end verified.
 - Provider booking-page settings are not clearly persisted per account in the database.
 - Dashboard/calendar local appointment data is not unified with Supabase bookings.
@@ -354,8 +356,8 @@ These are recommendations, not currently implemented features:
 - Persist booking-page configuration per provider account in Supabase.
 - Standardize appointment and subscription status values.
 - Align discount field names and validation between provider and superadmin screens.
-- Connect provider notifications to the Supabase notifications table with verified read policies.
-- Implement payment verification and support workflows.
+- Verify provider notification delivery and ticket replies end-to-end with a provider session.
+- Make payment verification/account activation atomic in a database function, and complete support workflows.
 - Add database migrations, explicit RLS policies, and documented storage policies.
 - Add server-side validation and price recalculation for public bookings.
 - Add meaningful error states and retry behavior for Supabase operations.
@@ -384,11 +386,11 @@ These are recommendations, not currently implemented features:
 | ADMIN-001 | Superadmin Auth/Layout | Superadmin | Implemented | `SuperAdminLogin.jsx`, `SuperAdminLayout.jsx` | Supabase Auth, role metadata |
 | ADMIN-002 | Account Management | Superadmin | Implemented | `SuperAccounts.jsx` | `accounts`, `payments` |
 | ADMIN-003 | Subscription Management | Superadmin | Implemented | `SuperSubscriptions.jsx`, `usePlans.js` | `plans`, `accounts`, `payments` |
-| ADMIN-004 | Payment Verification | Superadmin | Not Implemented | `SuperPayments.jsx` | Payment workflow |
+| ADMIN-004 | Payment Verification | Superadmin | Implemented in frontend; atomic update needed | `SuperPayments.jsx` | `payments`, `accounts` |
 | ADMIN-005 | Superadmin Analytics | Superadmin | Implemented | `SuperAnalytics.jsx` | `accounts`, `appointments`, `payments` |
 | ADMIN-006 | Discount Management | Superadmin | Implemented | `SuperDiscounts.jsx` | `discounts` |
-| ADMIN-007 | Notifications | Superadmin | Partially Implemented | `SuperNotifications.jsx`, notification context | `notifications`, `accounts`, provider read path |
-| ADMIN-008 | Support | Superadmin | Not Implemented | `SuperSupport.jsx` | Support workflow |
+| ADMIN-007 | Notifications | Provider/Superadmin | Live RLS applied; provider delivery test pending | `SuperNotifications.jsx`, `NotificationContext.jsx` | `notifications`, `accounts` |
+| ADMIN-008 | Support | Provider/Superadmin | Live tables/RLS applied; provider workflow test pending | `AdminSupport.jsx`, `SuperSupport.jsx` | `support_tickets`, `support_messages` |
 | SHARED-001 | Routing/Role Protection | All | Implemented | `AppRouter.jsx`, `ProtectedRoute.jsx` | Auth state and role metadata |
 | SHARED-002 | Supabase Client | All | Partially Implemented | `src/lib/supabase.js`, `supabaseAdmin.js` | Environment configuration, policies |
 | SHARED-003 | Shared UI Utilities | Provider/Superadmin | Implemented | Common components | React and Tailwind |

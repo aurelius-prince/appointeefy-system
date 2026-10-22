@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Users, UserCheck, Clock, AlertCircle, DollarSign, CreditCard, UserX, CalendarClock, CheckSquare, ChevronRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import StatCard from '../../components/common/StatCard'
+import StatCard from '../../components/superadmin/SuperStatCard'
 import Badge from '../../components/common/Badge'
 import PageHeader from '../../components/common/PageHeader'
 import { supabase } from '../../lib/supabase'

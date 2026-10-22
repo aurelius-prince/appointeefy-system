@@ -17,15 +17,17 @@ export default function SuperNotifications() {
   const [filter, setFilter] = useState('all')
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [sending, setSending] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const imgRef = useRef()
 
   useEffect(() => {
     Promise.all([
       supabase.from('notifications').select('*').order('sent_at', { ascending: false }),
-      supabase.from('accounts').select('id, name, status').in('status', ['active', 'trial', 'pending'])
-    ]).then(([{ data: notifs }, { data: accs }]) => {
+      supabase.from('accounts').select('id, name, status').order('name')
+    ]).then(([{ data: notifs, error: notificationError }, { data: accs, error: accountError }]) => {
       if (notifs) setNotifications(notifs)
       if (accs) setAccounts(accs)
+      if (notificationError || accountError) setSaveError('Notifications or provider accounts could not be loaded. Please refresh.')
       setLoading(false)
     })
   }, [])
@@ -44,13 +46,14 @@ export default function SuperNotifications() {
     const e = validate()
     if (Object.keys(e).length > 0) { setErrors(e); return }
     setSending(true)
-    const { data } = await supabase.from('notifications').insert({
+    const { data, error: sendError } = await supabase.from('notifications').insert({
       type: form.type,
       title: form.title.trim(),
       message: form.message.trim(),
       to_account_id: form.to_account_id || null,
       image_url: form.image || null,
     }).select().single()
+    if (sendError) { setSaveError('Notification could not be sent. Please try again.'); setSending(false); return }
     if (data) setNotifications(prev => [data, ...prev])
     setSending(false)
     setShowCompose(false)
@@ -59,7 +62,8 @@ export default function SuperNotifications() {
   }
 
   const handleDelete = async (id) => {
-    await supabase.from('notifications').delete().eq('id', id)
+    const { error: deleteError } = await supabase.from('notifications').delete().eq('id', id)
+    if (deleteError) { setSaveError('Notification could not be deleted.'); return }
     setNotifications(prev => prev.filter(n => n.id !== id))
     setDeleteConfirm(null)
   }
@@ -81,6 +85,7 @@ export default function SuperNotifications() {
           </button>
         }
       />
+      {saveError && <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{saveError}</p>}
 
       <div className="flex gap-2 mb-5">
         {[{ key: 'all', label: 'All', icon: Bell }, { key: 'announcement', label: 'Announcements', icon: Megaphone }, { key: 'message', label: 'Messages', icon: MessageSquare }]
