@@ -1,6 +1,7 @@
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { ArrowRight, BarChart3, CalendarDays, Check, ChevronRight, Globe2, Users } from 'lucide-react'
 import { usePlans } from '../../hooks/usePlans'
+import { useAuth } from '../../context/AuthContext'
 
 const serviceTypes = [
   ['Pet Sitting', true], ['Real Estate Agent', false], ['Gym Coaching', false],
@@ -31,7 +32,14 @@ function PriceCard({ name, price, period, regular, saving, details, highlight })
 }
 
 export default function ClientHome() {
+  const { user } = useAuth()
   const { plans } = usePlans()
+  if (user) {
+    const destination = user.needsOnboarding
+      ? '/onboarding'
+      : user.role === 'superadmin' ? '/superadmin/dashboard' : '/dashboard'
+    return <Navigate to={destination} replace />
+  }
   const monthly = Number(plans.monthly ?? 199)
   const annual = Number(plans.annual ?? 1799)
   const monthlyRegular = 400
