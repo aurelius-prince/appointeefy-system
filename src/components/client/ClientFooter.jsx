@@ -11,7 +11,7 @@ export default function ClientFooter() {
             <div className="flex items-center gap-2 mb-3">
               <img src={AppLogo} alt="Appointeefy" className="object-contain" style={{ height: '52px' }} />
             </div>
-            <p className="text-sm leading-relaxed max-w-xs">A clear, welcoming space for Pet Sitting bookings and business management.</p>
+            <p className="text-sm leading-relaxed max-w-xs">A clear, welcoming space for Pet Care Services bookings and business management.</p>
           </div>
 
           {/* Product */}

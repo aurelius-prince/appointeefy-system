@@ -6,7 +6,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 
 const SERVICE_TYPES = [
-  { value: 'Pet Sitting', label: 'Pet Sitting' },
+  { value: 'Pet Sitting', label: 'Pet Care Services' },
 ]
 
 const Field = ({ label, error, children }) => (
@@ -282,7 +282,7 @@ export default function Onboarding() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">Service Type</span>
-                  <span className="font-semibold text-gray-800">Pet Sitting</span>
+                <span className="font-semibold text-gray-800">Pet Care Services</span>
                 </div>
                 <div className="border-t border-gray-200 pt-3 flex justify-between">
                   <span className="text-gray-400">Price</span>
