@@ -357,6 +357,15 @@ export default function BookingPage() {
         alert(`Failed to submit booking. ${error.message || 'Please try again.'}`)
         return
       }
+      if (accountId) {
+        const { error: notificationError } = await supabase.from('notifications').insert({
+          type: 'booking',
+          title: 'New booking request',
+          message: `${form.name || 'A customer'} submitted a booking request for ${fmt(start)}.`,
+          to_account_id: accountId,
+        })
+        if (notificationError) console.warn('Booking notification error:', notificationError)
+      }
       setTxn(newTxn)
     } catch (err) {
       console.error('Booking error:', err)

@@ -867,14 +867,14 @@ body:has(.admin-theme-amber) > .subscription-payment-backdrop { --sub-accent: #d
   .dashboard-calendar > div:nth-child(2) span { font-size: 10px; }
   .dashboard-calendar > div:nth-child(3) { padding: 8px 8px 2px; }
   .dashboard-calendar > div:nth-child(3) > div { font-size: 11px; }
-  .dashboard-calendar-grid { margin: 0 8px 10px !important; grid-auto-rows: minmax(48px, auto); min-height: 0 !important; flex: none !important; }
-  .dashboard-calendar-grid > div { min-height: 48px !important; }
+  .dashboard-calendar-grid { margin: 0 8px 10px !important; grid-auto-rows: minmax(56px, auto); min-height: 0 !important; flex: none !important; border-radius: 12px; overflow: hidden; }
+  .dashboard-calendar-grid > div { min-height: 56px !important; }
   .dashboard-calendar-grid .w-6 { width: 20px; height: 20px; margin: 3px 0 2px 3px; font-size: 11px; }
   .dashboard-calendar-grid svg { width: 13px; height: 13px; top: 4px; right: 3px; }
   .dashboard-calendar-grid .h-5 { height: 10px; font-size: 8px; padding-inline: 2px; }
   .dashboard-calendar-grid .h-5:nth-of-type(n+3) { display: none; }
-  .full-calendar-backdrop { z-index: 40; inset: 0 0 76px; padding: 0; align-items: stretch; background: rgb(15 23 42 / .62) !important; isolation: isolate; overflow: hidden; }
-  .full-calendar-dialog { position: relative; z-index: 1; width: 100vw !important; height: 100% !important; border-radius: 0; min-width: 0; background: #fff !important; opacity: 1 !important; }
+  .full-calendar-backdrop { z-index: 40; inset: 10px 10px 86px; padding: 0; align-items: stretch; background: rgb(15 23 42 / .62) !important; isolation: isolate; overflow: hidden; border-radius: 22px; }
+  .full-calendar-dialog { position: relative; z-index: 1; width: 100% !important; height: 100% !important; border-radius: 22px; min-width: 0; background: #fff !important; opacity: 1 !important; box-shadow: 0 20px 50px rgb(15 23 42 / .22); }
   .full-calendar-dialog > div:first-child { padding: 12px 14px; }
   .full-calendar-dialog > div:first-child > div:first-child { flex-wrap: wrap; }
   .full-calendar-dialog > div:first-child .ml-3 { margin-left: 0; }
@@ -1005,12 +1005,12 @@ body:has(.admin-theme-amber) > .subscription-payment-backdrop { --sub-accent: #d
   .admin-notifications {
     position: fixed !important;
     z-index: 1200 !important;
-    top: 12px !important;
+    top: calc(68px + env(safe-area-inset-top)) !important;
     right: 12px !important;
-    bottom: 12px !important;
-    left: 12px !important;
-    width: auto;
-    max-height: none;
+    bottom: auto !important;
+    left: auto !important;
+    width: min(360px, calc(100vw - 24px));
+    max-height: min(68dvh, 520px);
     transform: none;
     display: flex;
     flex-direction: column;
@@ -1049,3 +1049,8 @@ body:has(.admin-theme-amber) > .subscription-payment-backdrop { --sub-accent: #d
 }
 .full-calendar-backdrop { isolation: isolate; background: rgb(15 23 42 / .62) !important; }
 .full-calendar-dialog { position: relative; z-index: 1; background-color: #fff !important; opacity: 1 !important; isolation: isolate; }
+.superadmin-shell .admin-page-heading h1 { border-left: 3px solid #64748b; padding-left: 10px; }
+@media (max-width: 1023px) {
+  .superadmin-shell > aside { transform: translateX(-100%); }
+  .superadmin-shell > aside.translate-x-0 { transform: translateX(0); }
+}
