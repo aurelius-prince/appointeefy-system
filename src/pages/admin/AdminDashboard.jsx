@@ -12,15 +12,14 @@ const fmtDate = (iso) =>
   new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
 const daysDiff = (a, b) => Math.max(1, Math.ceil((new Date(b) - new Date(a)) / 86400000))
 
-const STATUS_DOT  = { pending: 'bg-yellow-400', approved: 'bg-red-400', confirmed: 'bg-red-400', 'awaiting payment': 'bg-purple-400', paid: 'bg-green-400', completed: 'bg-green-400', cancelled: 'bg-red-400' }
-const STATUS_CHIP = { pending: 'bg-yellow-100 text-yellow-700', approved: 'bg-red-100 text-red-700', confirmed: 'bg-red-100 text-red-700', 'awaiting payment': 'bg-purple-100 text-purple-700', paid: 'bg-green-100 text-green-700', completed: 'bg-green-100 text-green-700', cancelled: 'bg-red-100 text-red-500' }
+const STATUS_DOT  = { pending: 'bg-yellow-400', approved: 'bg-blue-400', confirmed: 'bg-blue-400', 'awaiting payment': 'bg-purple-400', paid: 'bg-green-400', completed: 'bg-green-400', cancelled: 'bg-red-400' }
 const STATUS_LINE = { pending: 'bg-yellow-200 text-yellow-800', approved: 'bg-blue-200 text-blue-800', confirmed: 'bg-blue-200 text-blue-800', 'awaiting payment': 'bg-purple-200 text-purple-800', paid: 'bg-purple-200 text-purple-800', completed: 'bg-green-200 text-green-800', cancelled: 'bg-red-200 text-red-700' }
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const DAYS_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 const DAYS_FULL  = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 
 const LEGEND_STATUS = [
-  { color: 'bg-red-300',    label: 'Approved' },
+  { color: 'bg-blue-400',   label: 'Approved' },
   { color: 'bg-yellow-400', label: 'Pending' },
   { color: 'bg-purple-400', label: 'Awaiting payment' },
   { color: 'bg-green-400',  label: 'Paid / Completed' },
@@ -161,9 +160,9 @@ export default function AdminDashboard() {
           </div>
 
           {/* Legend */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-5 py-2.5 border-b border-gray-100 bg-gray-50/50">
+          <div className="calendar-legend flex flex-wrap items-center px-5 py-2.5 border-b border-gray-100 bg-gray-50/50">
             {LEGEND_STATUS.map(({ color, label }) => (
-              <div key={label} className="flex items-center gap-1.5">
+              <div key={label} className="calendar-legend-item flex items-center gap-1.5">
                 <span className={`w-2 h-2 rounded-full ${color}`} />
                 <span className="text-xs text-gray-400">{label}</span>
               </div>
@@ -188,7 +187,7 @@ export default function AdminDashboard() {
               const todayDay   = isToday(day)
               return (
                 <div key={day} onClick={() => { setSelectedDay(day); setShowDayModal(true) }}
-                  className={`${todayDay ? 'today-cell ' : ''}relative cursor-pointer transition-all p-0 overflow-hidden border-r border-b border-gray-200
+                  className={`${todayDay ? 'today-cell ' : ''}relative cursor-pointer transition-all p-0 overflow-visible border-r border-b border-gray-200
                     ${todayDay ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
                   <div className={`today-date w-6 h-6 ml-1.5 mt-1.5 flex items-center justify-center text-sm font-bold mb-1 shrink-0
                     ${todayDay ? 'text-blue-700 font-bold' : 'text-gray-700'}`}>
@@ -199,7 +198,7 @@ export default function AdminDashboard() {
                     {Array.from({ length: Math.min(miniLaneCount, 3) }).map((_, lane) => {
                       const apt = apts.find(item => miniLaneById[item.id] === lane)
                       return apt ? (
-                        <div key={apt.id} className={`relative z-10 flex h-5 items-center text-[10px] ${apt.checkIn < dateStr ? '-ml-px' : 'ml-0'} ${apt.checkOut > dateStr ? '-mr-px' : 'mr-0'} px-1.5 font-medium truncate ${apt.checkIn === dateStr ? 'rounded-l-md' : ''} ${apt.checkOut === dateStr ? 'rounded-r-md' : ''} ${STATUS_LINE[apt.status] || 'bg-gray-100 text-gray-500'}`}>
+                        <div key={apt.id} className={`calendar-status-line relative z-10 flex h-5 items-center px-1.5 text-[10px] font-medium truncate ${(apt.checkIn === dateStr || new Date(year, month, day).getDay() === 0) ? 'is-start' : ''} ${(apt.checkOut === dateStr || new Date(year, month, day).getDay() === 6) ? 'is-end' : ''} ${STATUS_LINE[apt.status] || 'bg-gray-100 text-gray-500'}`}>
                           {apt.checkIn === dateStr ? apt.customer.split(' ')[0] : '\u00a0'}
                         </div>
                       ) : <div key={`mini-empty-${lane}`} className="h-5" />
@@ -272,9 +271,9 @@ export default function AdminDashboard() {
       </div>
 
       {/* ── Day Detail Modal (mini cal) ── */}
-      {showDayModal && selectedDay && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowDayModal(false)}>
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+      {showDayModal && selectedDay && createPortal((
+        <div className="calendar-day-backdrop" onClick={() => setShowDayModal(false)}>
+          <div role="dialog" aria-modal="true" aria-label="Appointments for selected date" className="calendar-day-dialog" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <div>
                 <h2 className="font-bold text-gray-800">
@@ -307,7 +306,7 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
 
       {/* ── Full Calendar Modal ── */}
       {showFullCal && createPortal((
@@ -349,9 +348,9 @@ export default function AdminDashboard() {
               </button>
             </div>
             {/* Full Cal Legend */}
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 px-6 py-3 border-b border-gray-100 bg-gray-50/50 shrink-0">
+            <div className="calendar-legend flex flex-wrap items-center px-6 py-3 border-b border-gray-100 bg-gray-50/50 shrink-0">
               {LEGEND_STATUS.map(({ color, label }) => (
-                <div key={label} className="flex items-center gap-1.5">
+                <div key={label} className="calendar-legend-item flex items-center gap-1.5">
                   <span className={`w-2.5 h-2.5 rounded-full ${color}`} />
                   <span className="text-xs text-gray-500">{label}</span>
                 </div>
@@ -374,32 +373,20 @@ export default function AdminDashboard() {
                   const dateStr = `${calCurrent.year}-${String(calCurrent.month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
                   const apts = getCalDayApts(day)
                   const todayDay   = isCalToday(day)
-                  const statusCounts = apts.reduce((acc, a) => { acc[a.status] = (acc[a.status] || 0) + 1; return acc }, {})
                   return (
-                    <div key={day} onClick={() => { setCalSelectedDay(day); setShowCalDayModal(true) }}
-                      className={`${todayDay ? 'today-cell ' : ''}relative border-r border-b border-gray-200 p-0 cursor-pointer transition-colors min-h-24
+                    <div key={day} role="button" tabIndex={0} aria-label={`View appointments for ${MONTHS[calCurrent.month]} ${day}, ${calCurrent.year}`} onClick={() => { setCalSelectedDay(day); setShowCalDayModal(true) }} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setCalSelectedDay(day); setShowCalDayModal(true) } }}
+                      className={`${todayDay ? 'today-cell ' : ''}relative border-r border-b border-gray-200 p-0 cursor-pointer transition-colors min-h-24 overflow-visible
                         ${todayDay ? 'bg-blue-600/5' : 'hover:bg-gray-50'}`}>
                       <div className={`today-date w-7 h-7 ml-2 mt-2 flex items-center justify-center text-sm font-bold mb-1
                         ${todayDay ? 'text-blue-700 font-bold' : 'text-gray-700'}`}>
                         {day}
                       </div>
                       {apts.length > 0 && <PawPrint size={28} strokeWidth={2} className="absolute right-2 top-2 z-20 text-blue-300/60 pointer-events-none" />}
-                      {/* Status dot row */}
-                      {apts.length > 0 && (
-                        <div className="flex flex-wrap gap-0.5 mb-1">
-                          {Object.entries(statusCounts).map(([status, count]) => (
-                            <div key={status} className="flex items-center gap-0.5">
-                              <span className={`w-2 h-2 rounded-full ${STATUS_DOT[status] || 'bg-gray-300'}`} />
-                              {count > 1 && <span className="text-[10px] text-gray-500 leading-none">{count}</span>}
-                            </div>
-                          ))}
-                        </div>
-                      )}
                       <div className="space-y-0.5">
                         {Array.from({ length: Math.min(calLaneCount, 4) }).map((_, lane) => {
                           const apt = apts.find(item => calLaneById[item.id] === lane)
                           return apt ? (
-                            <div key={apt.id} className={`relative z-10 flex h-6 items-center text-xs ${apt.checkIn < dateStr ? '-ml-px' : 'ml-0'} ${apt.checkOut > dateStr ? '-mr-px' : 'mr-0'} px-1.5 font-medium truncate ${apt.checkIn === dateStr ? 'rounded-l-md' : ''} ${apt.checkOut === dateStr ? 'rounded-r-md' : ''} ${STATUS_LINE[apt.status] || 'bg-gray-100 text-gray-500'}`}>
+                            <div key={apt.id} onClick={(event) => { event.stopPropagation(); setSelectedApt(apt) }} className={`calendar-status-line relative z-10 flex h-6 items-center px-1.5 text-xs font-medium truncate ${(apt.checkIn === dateStr || new Date(calCurrent.year, calCurrent.month, day).getDay() === 0) ? 'is-start' : ''} ${(apt.checkOut === dateStr || new Date(calCurrent.year, calCurrent.month, day).getDay() === 6) ? 'is-end' : ''} ${STATUS_LINE[apt.status] || 'bg-gray-100 text-gray-500'}`}>
                               {apt.checkIn === dateStr ? apt.customer.split(' ')[0] : '\u00a0'}
                             </div>
                           ) : <div key={`empty-${lane}`} className="h-6" />
@@ -416,9 +403,9 @@ export default function AdminDashboard() {
       ), document.body)}
 
       {/* ── Cal Day Modal ── */}
-      {showCalDayModal && calSelectedDay && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4" onClick={() => setShowCalDayModal(false)}>
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+      {showCalDayModal && calSelectedDay && createPortal((
+        <div className="calendar-day-backdrop" onClick={() => setShowCalDayModal(false)}>
+          <div role="dialog" aria-modal="true" aria-label="Appointments for selected date" className="calendar-day-dialog" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <div>
                 <h2 className="font-bold text-gray-800">{calSelectedDateStr}</h2>
@@ -452,11 +439,11 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
 
       {/* ── Appointment Detail Modal ── */}
-      {selectedApt && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedApt(null)}>
+      {selectedApt && createPortal((
+        <div className="calendar-day-backdrop" style={{ zIndex: 1700 }} onClick={() => setSelectedApt(null)}>
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <div>
@@ -506,7 +493,7 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
     </div>
   )
 }

@@ -353,13 +353,13 @@
   inset: 3px auto 3px 0;
   width: 5px;
   border-radius: 999px;
-  background: linear-gradient(#f472b6, #c4b5fd);
+  background: #64748b;
 }
 
-.admin-theme-violet .admin-page-heading::before { background: linear-gradient(#8b5cf6, #c4b5fd); }
-.admin-theme-emerald .admin-page-heading::before { background: linear-gradient(#10b981, #6ee7b7); }
-.admin-theme-amber .admin-page-heading::before { background: linear-gradient(#f59e0b, #fcd34d); }
-.admin-theme-pink .admin-page-heading::before { background: linear-gradient(#ec4899, #c4b5fd); }
+.admin-theme-violet .admin-page-heading::before,
+.admin-theme-emerald .admin-page-heading::before,
+.admin-theme-amber .admin-page-heading::before,
+.admin-theme-pink .admin-page-heading::before { background: #64748b; }
 
 .admin-stat-card {
   position: relative;
@@ -1049,8 +1049,22 @@ body:has(.admin-theme-amber) > .subscription-payment-backdrop { --sub-accent: #d
 }
 .full-calendar-backdrop { isolation: isolate; background: rgb(15 23 42 / .62) !important; }
 .full-calendar-dialog { position: relative; z-index: 1; background-color: #fff !important; opacity: 1 !important; isolation: isolate; }
-.superadmin-shell .admin-page-heading h1 { border-left: 3px solid #64748b; padding-left: 10px; }
+.superadmin-shell .admin-page-heading::before { background: #64748b; }
+.calendar-status-line { margin-left: -1px; margin-right: -1px; border-radius: 0; }
+.calendar-status-line.is-start { border-radius: 7px 0 0 7px; }
+.calendar-status-line.is-end { border-radius: 0 7px 7px 0; }
+.calendar-status-line.is-start.is-end { border-radius: 7px; }
+.calendar-legend { gap: 6px; }
+.calendar-legend-item { padding: 4px 8px; border: 1px solid #e8edf3; border-radius: 999px; background: #fff; white-space: nowrap; }
+.calendar-day-backdrop { position: fixed; z-index: 1600; inset: 0; display: grid; place-items: center; padding: 16px; background: rgb(15 23 42 / .52); }
+.calendar-day-dialog { width: min(430px, 100%); max-height: min(640px, calc(100dvh - 32px)); display: flex; flex-direction: column; overflow: hidden; border: 1px solid #e8edf3; border-radius: 22px; background: #fff; box-shadow: 0 24px 70px rgb(15 23 42 / .24); }
+.calendar-day-dialog > div:first-child { flex: none; background: #fff; }
+.calendar-day-dialog > div:last-child { min-height: 0; overflow-y: auto; background: #f8fafc; }
+.calendar-day-backdrop > .bg-white { max-height: calc(100dvh - 32px); overflow-y: auto; }
 @media (max-width: 1023px) {
   .superadmin-shell > aside { transform: translateX(-100%); }
   .superadmin-shell > aside.translate-x-0 { transform: translateX(0); }
+  .superadmin-mobile-logo img { display: block; width: 145px; height: 48px; max-width: 100%; }
+  .calendar-legend { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .calendar-legend::-webkit-scrollbar { display: none; }
 }
