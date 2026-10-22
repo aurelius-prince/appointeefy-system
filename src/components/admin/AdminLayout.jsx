@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useNotifications } from '../../context/NotificationContext'
@@ -246,7 +247,7 @@ export default function AdminLayout() {
                 )}
               </button>
 
-              {showNotifs && (
+              {showNotifs && createPortal((
                 <>
                 <button
                   type="button"
@@ -299,7 +300,7 @@ export default function AdminLayout() {
                   {notificationError && <button onClick={refreshNotifications} className="w-full border-t border-gray-100 py-2 text-xs font-semibold text-blue-600">Retry</button>}
                 </div>
                 </>
-              )}
+              ), document.body)}
             </div>
 
             <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold overflow-hidden">
