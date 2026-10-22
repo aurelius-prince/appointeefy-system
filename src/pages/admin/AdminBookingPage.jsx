@@ -1240,9 +1240,9 @@ export default function AdminBookingPage() {
               <p className="text-xs text-gray-400 mt-1 text-right">{testimony.title.length}/50</p>
             </Field>
             {testimony.items.map((t, i) => (
-              <div key={i} className="bg-gray-50 rounded-xl p-4 space-y-3 border border-gray-100">
+              <div key={i} className="booking-testimonial-editor-card bg-gray-50 rounded-xl p-4 space-y-3 border border-gray-100">
                 <p className="text-xs font-semibold text-gray-500">Testimonial {i + 1}</p>
-                <div className="flex items-start gap-3">
+                <div className="booking-testimonial-editor-fields flex items-start gap-3">
                   <ImageUpload value={t.image} onChange={v => updateTestimony(i, 'image', v)} accountId={accountId} />
                   <div className="flex-1 space-y-2">
                     <input value={t.name} onChange={e => updateTestimony(i, 'name', e.target.value)} maxLength={40} placeholder="Client name" className={inp} />

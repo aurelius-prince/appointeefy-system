@@ -137,3 +137,9 @@ The repository does not document the exact Supabase schema, RLS policies, backen
 ## 11. Local Test Environment
 
 Use `http://localhost:5173/` as the canonical Appointeefy provider app and `http://localhost:5173/book/petsi` as the public Pet Sitting booking page. Avoid `127.0.0.1:5174`, which can point to an older or separate local instance. A complete booking test should verify the receipt first, then confirm the same booking in the `localhost:5173` provider Appointments or Dashboard view, including Address, dates, pricing type, duration, amount, and status.
+
+## 12. Subscription and Appointment UI Verification
+
+For subscription testing, select a plan, confirm the order summary and quantity/duration calculation, then use **Proceed to payment**. Verify that a transaction appears in history immediately with an awaiting-payment status, that the payment modal opens with the GCash QR and proof/reference fields, and that closing and reopening the transaction preserves the flow. Test cancellation, failed status messaging, and the one-hour expiry notice without submitting real payment data.
+
+For appointment testing, open a booking card, open **Appointment Details**, and test status actions, receipt, cancel, and close. The receipt should open as a centered page-level modal on mobile and desktop without being clipped by the admin shell or scrolling the background. Close the receipt, then confirm the appointment details modal remains available.

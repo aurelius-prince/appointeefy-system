@@ -81,6 +81,17 @@ Supabase is used for authentication, database access, storage, and selected real
 
 ## 4. Provider Functionalities
 
+### PROV-000 — Recent Provider UI and Payment Workflow Enhancements
+
+- **Subscription checkout:** Providers choose a plan, adjust subscription quantity/duration, review an order summary, and proceed to payment from the summary instead of seeing payment fields immediately.
+- **Manual GCash payment:** Payment opens in a modal with a GCash QR code, save-image action, GCash reference input, receipt/proof upload, payment instructions, and a red close action. The modal is responsive for mobile and keeps the QR prominent.
+- **Transaction history:** A transaction record is created when the provider proceeds to payment, before proof submission. Awaiting-payment records can be reopened to continue payment; a cancelled transaction is marked failed and a new transaction can be created when a paid attempt needs replacement verification.
+- **Expiry and status messaging:** Awaiting-payment transactions show their transaction ID, creation time, and one-hour expiry notice. Expired or cancelled attempts are represented with a failed status. The history table supports pagination and explains how to submit a new receipt/reference when the payment was made but the transaction failed.
+- **Appointment receipt:** Provider appointment details include an acknowledgement receipt action. The receipt is rendered as a page-level modal so it remains visible on mobile even when the dashboard shell clips overflow; it includes print/save-PDF behavior and a close control.
+- **Mobile appointment UI:** Appointment details and status confirmation dialogs are layered above the page, background scrolling is locked while a dialog is open, and action buttons remain reachable within the dialog.
+- **Status filtering:** Appointment status filters use a styled dropdown menu with active-state highlighting on mobile and desktop.
+- **Status:** Implemented in the current frontend; Supabase RLS, payment verification, and production storage policies still require deployment-level verification.
+
 ### PROV-001 — Provider Authentication and Onboarding
 
 - **Description:** Provider Google OAuth entry, Supabase session handling, onboarding form, account creation, initial service creation, and auth metadata update.

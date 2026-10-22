@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { CalendarDays, Users, CheckCircle, Clock, ChevronRight, ChevronLeft, X, PawPrint } from 'lucide-react'
 import StatCard from '../../components/common/StatCard'
@@ -309,7 +310,7 @@ export default function AdminDashboard() {
       )}
 
       {/* ── Full Calendar Modal ── */}
-      {showFullCal && (
+      {showFullCal && createPortal((
         <div className="full-calendar-backdrop fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="full-calendar-dialog bg-white rounded-2xl shadow-2xl flex flex-col" style={{ width: '85vw', height: '85vh' }}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
@@ -412,7 +413,7 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
 
       {/* ── Cal Day Modal ── */}
       {showCalDayModal && calSelectedDay && (

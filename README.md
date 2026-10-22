@@ -34,10 +34,18 @@ supabase/       Supabase function directory
 
 - Public landing page and provider booking pages
 - Provider onboarding, booking-page editor, services, appointments, customers, calendar, analytics, logs, profile, and subscriptions
+- Subscription checkout with plan selection, quantity/duration controls, order summary, GCash QR payment modal, payment reference and proof upload, transaction history, continuation of awaiting-payment transactions, cancellation/failure states, and payment expiry messaging
+- Mobile responsive navigation, page layouts, appointment details, acknowledgement receipt modal, and appointment status controls
 - Superadmin account, subscription, discount, analytics, and notification management
 - Role-based routing and protected pages
 
 See [FUNCTIONALITIES.md](FUNCTIONALITIES.md) for the verified feature inventory and stable feature IDs.
+
+## Vercel bandwidth and visitor planning
+
+The production deployment is `appointeefy-system.vercel.app`. Vercel's **Last 30 days** usage is a rolling window, not a lifetime total. Fast Data Transfer includes the HTML, JavaScript, CSS, images, QR assets, receipt images, and API responses downloaded by visitors. A client-side **Save Image** action downloads to the visitor's device and does not create another Vercel storage object.
+
+For planning, 100 clients with 20–50 landing-page visitors each represents about 2,000–5,000 visits per month. At approximately 500 KB, 1 MB, or 2 MB per first load, that is roughly 1–2.5 GB, 2–5 GB, or 4–10 GB of monthly transfer. Browser and CDN caching can reduce repeat-load traffic. Deployment Storage is separate and does not reset monthly; request and transfer counters roll out of the 30-day window over time.
 
 ## System Architecture
 

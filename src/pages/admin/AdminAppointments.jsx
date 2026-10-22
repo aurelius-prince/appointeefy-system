@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { Search, X, PawPrint, ChevronDown, FileText, RotateCcw, Clock, Trash2 } from 'lucide-react'
 import PageHeader from '../../components/common/PageHeader'
 import { useBookings } from '../../context/BookingContext'
@@ -131,6 +132,7 @@ export default function AdminAppointments() {
   const { user } = useAuth()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('active')
+  const [statusFilterOpen, setStatusFilterOpen] = useState(false)
   const [page, setPage] = useState(1)
   const [selected, setSelected] = useState(null)
   const [editPrice, setEditPrice] = useState('')
@@ -155,6 +157,20 @@ export default function AdminAppointments() {
   const historyRef = useRef([])
   const [hasHistory, setHasHistory] = useState(false)
   const invoiceRef = useRef()
+  const appointmentDialogRef = useRef(null)
+
+  useEffect(() => {
+    if (!selected || deleteConfirm) return undefined
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const frame = requestAnimationFrame(() => {
+      if (!showInvoice && appointmentDialogRef.current) appointmentDialogRef.current.scrollTop = 0
+    })
+    return () => {
+      cancelAnimationFrame(frame)
+      document.body.style.overflow = previousOverflow
+    }
+  }, [selected, showInvoice, deleteConfirm])
 
   const displayStatus = (appointment) => {
     const conflict = appointment?.status === 'pending' && appointments.some(a => a.id !== appointment.id && ['approved', 'confirmed', 'awaiting payment', 'paid'].includes(a.status) && bookingOverlaps(appointment, a))
@@ -175,6 +191,7 @@ export default function AdminAppointments() {
   useEffect(() => { if (page > totalPages) setPage(totalPages) }, [page, totalPages])
 
   const openModal = (a) => {
+    setStatusFilterOpen(false)
     setSelected(a)
     setEditPrice(String(a.finalPrice))
     setEditNote(a.priceNote)
@@ -191,7 +208,19 @@ export default function AdminAppointments() {
     setRescheduleMonth(new Date(`${a.checkIn || a.date || new Date().toISOString().slice(0, 10)}T00:00:00`))
   }
 
-  const closeModal = () => { setSelected(null); historyRef.current = []; setHasHistory(false); setDownpaymentInput(''); setFullPaymentInput(''); setEditingPayment({ downpayment: false, full: false }) }
+  const closeModal = () => {
+    setSelected(null)
+    setConfirmStatus(null)
+    setOverpayModal(null)
+    setRescheduleOpen(false)
+    setPriceEditing(false)
+    setShowInvoice(false)
+    historyRef.current = []
+    setHasHistory(false)
+    setDownpaymentInput('')
+    setFullPaymentInput('')
+    setEditingPayment({ downpayment: false, full: false })
+  }
 
   const hasApprovedConflict = selected?.status === 'pending' && appointments.some(a => a.id !== selected.id && ['approved', 'confirmed', 'awaiting payment', 'paid'].includes(a.status) && bookingOverlaps(selected, a))
   const isApprovalBlocked = selected?.status === 'pending' && hasApprovedConflict
@@ -288,7 +317,7 @@ export default function AdminAppointments() {
   }
 
   const updateStatus = (newStatus) => {
-    if (newStatus === 'approved' && isApprovalBlocked) return
+    if (newStatus === 'approved' && selected?.status === 'pending' && isApprovalBlocked) return
     if (newStatus === 'completed') {
       const checkOutDate = selected?.checkOut || selected?.date
       const checkOutTime = selected?.endTime || selected?.time || '23:59'
@@ -306,7 +335,7 @@ export default function AdminAppointments() {
 
   const confirmStatusChange = () => {
     if (!confirmStatus) return
-    if (confirmStatus === 'approved' && isApprovalBlocked) {
+    if (confirmStatus === 'approved' && selected?.status === 'pending' && isApprovalBlocked) {
       setConfirmStatus(null)
       return
     }
@@ -479,14 +508,14 @@ export default function AdminAppointments() {
             className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
           />
         </div>
-        <div className="relative">
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
-            className="appearance-none pl-3 pr-8 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white">
-            {STATUS_OPTIONS.map((s) => (
-              <option key={s} value={s}>{s === 'active' ? 'Active Appointments' : s === 'all' ? 'All Status' : STATUS_LABELS[s]}</option>
-            ))}
-          </select>
-          <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+        <div className="appointments-status-filter relative">
+          <button type="button" onClick={() => setStatusFilterOpen(value => !value)} className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+            <span>{statusFilter === 'active' ? 'Active Appointments' : statusFilter === 'all' ? 'All Status' : STATUS_LABELS[statusFilter]}</span>
+            <ChevronDown size={14} className={`text-gray-400 transition-transform ${statusFilterOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {statusFilterOpen && <div className="appointments-status-menu absolute left-0 top-11 z-50 w-56 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xl">
+            {STATUS_OPTIONS.map(s => <button key={s} type="button" onClick={() => { setStatusFilter(s); setStatusFilterOpen(false) }} className={`block w-full px-4 py-2.5 text-left text-sm transition-colors ${statusFilter === s ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}>{s === 'active' ? 'Active Appointments' : s === 'all' ? 'All Status' : STATUS_LABELS[s]}</button>)}
+          </div>}
         </div>
       </div>
 
@@ -578,9 +607,9 @@ export default function AdminAppointments() {
       </div>
 
       {/* Detail Modal */}
-      {selected && !showInvoice && !deleteConfirm && (
+      {selected && !showInvoice && !deleteConfirm && createPortal((
         <div className="appointment-detail-backdrop fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={closeModal}>
-          <div className="appointment-detail-dialog bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div ref={appointmentDialogRef} role="dialog" aria-modal="true" aria-labelledby="appointment-details-title" className="appointment-detail-dialog bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-blue-100 bg-gradient-to-r from-blue-50 via-white to-purple-50">
               <div className="flex items-center gap-3">
@@ -588,7 +617,7 @@ export default function AdminAppointments() {
                   <PawPrint size={20} strokeWidth={2.2} className="text-white" />
                 </div>
                 <div>
-                  <p className="text-base font-bold text-gray-900">Appointment Details</p>
+                  <p id="appointment-details-title" className="text-base font-bold text-gray-900">Appointment Details</p>
                   <p className="text-xs text-gray-500 mt-0.5">{selected.service} · {selected.customer}</p>
                 </div>
               </div>
@@ -598,11 +627,11 @@ export default function AdminAppointments() {
                   <span className={`text-sm font-semibold px-5 py-2 rounded-full shadow-sm ${STATUS_COLORS[displayStatus(selected)]}`}>{STATUS_LABELS[displayStatus(selected)] || displayStatus(selected)}</span>
                 </span>
                 </div>
-                <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+                <button type="button" aria-label="Close appointment details" onClick={closeModal} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
               </div>
             </div>
 
-            <div className="px-6 py-5 space-y-5">
+            <div className="appointment-detail-body px-6 py-5 space-y-5">
               {/* Customer & Pet */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="rounded-xl border border-gray-100 bg-gray-50/80 p-3">
@@ -820,7 +849,7 @@ export default function AdminAppointments() {
               )}
 
               {/* Actions */}
-              <div className="sticky bottom-0 -mx-6 px-6 pt-4 pb-3 bg-white/95 backdrop-blur-sm border-t border-gray-100 flex flex-wrap gap-3 z-10">
+              <div className="-mx-6 px-6 pt-4 pb-3 bg-white border-t border-gray-100 flex flex-wrap gap-3">
                 <button
                   onClick={() => setShowInvoice(true)}
                   className="basis-[calc(50%-0.375rem)] sm:flex-1 min-w-0 min-h-12 inline-flex items-center justify-center gap-1.5 px-2 border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl text-[clamp(.68rem,1.6vw,.875rem)] font-medium text-center leading-tight transition-colors"
@@ -831,7 +860,7 @@ export default function AdminAppointments() {
                   <button
                     type="button"
                     title={`Return this appointment to ${STATUS_LABELS[STATUS_REVERSE[selected.status]]}`}
-                    onClick={() => updateStatus(STATUS_REVERSE[selected.status])}
+                    onClick={() => setConfirmStatus(STATUS_REVERSE[selected.status])}
                     className="theme-hover-action basis-[calc(50%-0.375rem)] sm:flex-1 min-w-0 min-h-12 inline-flex items-center justify-center gap-1 px-2 rounded-xl border border-gray-200 bg-white text-gray-600 hover:text-blue-600 hover:bg-blue-50 text-[clamp(.68rem,1.6vw,.875rem)] font-medium text-center leading-tight transition-colors"
                   >
                     <RotateCcw size={14} />
@@ -851,10 +880,10 @@ export default function AdminAppointments() {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
 
       {/* Invoice Modal */}
-      {selected && showInvoice && (
+      {selected && showInvoice && createPortal((
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowInvoice(false)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
@@ -952,7 +981,7 @@ export default function AdminAppointments() {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
 
       {/* Reset Appointments Confirmation Modal */}
       {resetAppointmentsOpen && (
@@ -989,8 +1018,8 @@ export default function AdminAppointments() {
       )}
 
       {/* Status Confirmation Modal */}
-      {confirmStatus && selected && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+      {confirmStatus && selected && createPortal((
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1100] p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-5">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">?</div>
@@ -1010,11 +1039,11 @@ export default function AdminAppointments() {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
 
       {/* Overpayment Confirmation Modal */}
-      {overpayModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+      {overpayModal && createPortal((
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1100] p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-yellow-50 flex items-center justify-center shrink-0">
@@ -1048,7 +1077,7 @@ export default function AdminAppointments() {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
     </div>
   )
 }

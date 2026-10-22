@@ -8,6 +8,16 @@ const ls = (key, fallback) => {
   try { const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback } catch { return fallback }
 }
 
+const uniqueBy = (items = [], keyOf) => {
+  const seen = new Set()
+  return items.filter((item) => {
+    const key = keyOf(item)
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
 const DAYS = ['Su','Mo','Tu','We','Th','Fr','Sa']
 const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
 
@@ -126,21 +136,21 @@ export default function BookingPage() {
           .select('name')
           .eq('account_id', account.id)
 
-        if (svcs) setDbServices(svcs.map(s => ({
+        if (svcs) setDbServices(uniqueBy(svcs, s => s.id || `${s.name}-${s.price}-${s.duration}`).map(s => ({
           ...s,
           desc: s.description || '',
           pricingType: s.pricing_type || 'per_day',
           max: s.max_pets || 10,
           mixedTypes: s.mixed_types ?? true,
         })))
-        if (pts) setDbPetTypes(pts.map(p => p.name))
+        if (pts) setDbPetTypes(uniqueBy(pts, p => String(p.name || '').trim().toLowerCase()).map(p => p.name))
 
         const { data: apts } = await supabase
           .from('appointments')
           .select('check_in, check_out, time, end_time, status, pricing_type')
           .eq('account_id', account.id)
           .in('status', ['pending', 'approved', 'confirmed', 'awaiting payment', 'paid'])
-        if (apts) setExistingBookings(apts)
+        if (apts) setExistingBookings(uniqueBy(apts, a => `${a.check_in}|${a.check_out}|${a.time}|${a.end_time}|${a.status}`))
       } catch (e) {
         console.error('fetchBySlug error:', e)
       } finally {

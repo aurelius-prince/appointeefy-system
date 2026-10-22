@@ -13,12 +13,13 @@ const STATUS_STYLES = {
   // Payment statuses
   verified:   'bg-green-100 text-green-700',
   rejected:   'bg-red-100 text-red-700',
+  failed:     'bg-red-100 text-red-700',
   // Appointment statuses
   approved:          'bg-blue-100 text-blue-700',
   confirmed:         'bg-blue-100 text-blue-700',
   completed:         'bg-green-100 text-green-700',
   cancelled:         'bg-red-100 text-red-700',
-  'awaiting payment':'bg-purple-100 text-purple-700',
+  awaiting_payment: 'bg-orange-100 text-orange-700',
   // Support
   open:       'bg-blue-100 text-blue-700',
   resolved:   'bg-gray-100 text-gray-600',
