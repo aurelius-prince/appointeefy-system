@@ -247,6 +247,13 @@ export default function AdminLayout() {
               </button>
 
               {showNotifs && (
+                <>
+                <button
+                  type="button"
+                  aria-label="Close notifications"
+                  className="admin-notification-backdrop"
+                  onClick={() => setShowNotifs(false)}
+                />
                 <div className="admin-notifications absolute right-0 top-11 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 overflow-hidden">
                   <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
                     <p className="font-semibold text-gray-800 text-sm">Notifications</p>
@@ -291,6 +298,7 @@ export default function AdminLayout() {
                   </div>
                   {notificationError && <button onClick={refreshNotifications} className="w-full border-t border-gray-100 py-2 text-xs font-semibold text-blue-600">Retry</button>}
                 </div>
+                </>
               )}
             </div>
 
