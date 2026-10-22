@@ -157,15 +157,15 @@ export default function SuperAnalytics() {
 
   return (
     <div>
-      <PageHeader title="Analytics" subtitle="System-wide performance overview" />
+      <PageHeader title="Analytics" subtitle="Payments, subscriptions, and account activity" />
       {loadError && <p role="alert" className="mb-5 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{loadError}</p>}
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-        <StatCard title="Total Users"    value={stats.total}                    icon={Users}        color="blue" />
-        <StatCard title="Paid Plans"     value={stats.paying}                   icon={UserCheck}    color="green" />
-        <StatCard title="On Trial"       value={stats.trial}                    icon={TrendingUp}   color="purple" />
         <StatCard title="Verified Payments" value={`₱${totalRevenue.toLocaleString()}`} icon={DollarSign} color="yellow" />
+        <StatCard title="For Review" value={paymentCounts.pending} icon={CalendarCheck} color="blue" />
+        <StatCard title="Paid Plans"     value={stats.paying}                   icon={UserCheck}    color="green" />
+        <StatCard title="Total Users"    value={stats.total}                    icon={Users}        color="blue" />
         <StatCard title="Appointments"   value={appointments.length}            icon={CalendarCheck} color="blue" />
       </div>
 

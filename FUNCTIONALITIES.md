@@ -35,6 +35,7 @@ Supabase is used for authentication, database access, storage, and selected real
 - **Validation/permissions:** Public route.
 - **Dependencies:** React Router and shared client layout.
 - **Status:** Implemented. Marketing content and external destinations should be reviewed separately.
+- **2026-10-22 update:** The landing page uses a blue product design with a labeled illustrative booking-page preview and a static grid of service categories (Pet Sitting available; other categories marked Coming soon). It has a compact three-column pricing comparison on mobile with more prominent crossed-out regular prices. Current plan prices from `usePlans` are compared with a ₱400/month reference rate (₱4,800/year), with computed savings. Copy emphasizes the landing page website and appointments for solo providers, and distinguishes appointment payment recording from provider subscription payment by GCash. It describes the business-name booking link as `/book/:slug`, not a dedicated custom domain. Invented customer testimonials and usage/uptime figures were removed. The shared footer is light so the dark logo stays legible.
 
 ### PUB-002 — Provider Public Booking Page
 
@@ -103,6 +104,7 @@ Supabase is used for authentication, database access, storage, and selected real
 - **Outputs:** Account with `waitlisted` status, provider user row, initial Pet Sitting service, and auth metadata containing `role` and `account_id`.
 - **Permissions:** Provider routes require `role="admin"`; onboarding is required when account metadata is missing.
 - **Status:** Implemented, with database policy and duplicate-account behavior needing verification.
+- **2026-10-22 sign-in fix:** Existing Google users returning to `/onboarding` are redirected to their dashboard instead of the login page. `/login` and `/register` also redirect already-authenticated users to their dashboard or onboarding as appropriate. The sign-in button handles OAuth startup errors and prevents repeat clicks while redirecting. A full Google OAuth round trip still needs verification in a signed-in browser session.
 
 ### PROV-002 — Provider Dashboard
 

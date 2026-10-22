@@ -222,22 +222,20 @@ export default function SuperAccounts() {
               )}
               {filtered.map(a => (
                 <tr key={a.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setSelected(a)}>
-                  <td className="px-6 py-3.5">
-                    <p className="font-medium text-gray-800">{a.name}</p>
-                    <p className="text-xs text-gray-400">{a.account_code}</p>
+                  <td data-label="Business" className="px-6 py-3.5">
+                    <div><p className="font-medium text-gray-800">{a.name}</p><p className="text-xs text-gray-400">{a.account_code}</p></div>
                   </td>
-                  <td className="px-6 py-3.5">
-                    <p className="text-gray-700">{a.email}</p>
-                    <p className="text-xs text-gray-400">{a.phone}</p>
+                  <td data-label="Contact" className="px-6 py-3.5">
+                    <div><p className="text-gray-700">{a.email}</p><p className="text-xs text-gray-400">{a.phone}</p></div>
                   </td>
-                  <td className="px-6 py-3.5 text-gray-600">{a.business_type}</td>
-                  <td className="px-6 py-3.5">
+                  <td data-label="Type" className="px-6 py-3.5 text-gray-600">{a.business_type}</td>
+                  <td data-label="Status" className="px-6 py-3.5">
                     <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_COLORS[a.status] || 'bg-gray-100 text-gray-600'}`}>
                       {a.status?.replace('_', ' ')}
                     </span>
                   </td>
-                  <td className="px-6 py-3.5 text-gray-500 text-xs">{fmtDate(a.trial_ends)}</td>
-                  <td className="px-6 py-3.5">
+                  <td data-label="Trial Ends" className="px-6 py-3.5 text-gray-500 text-xs">{fmtDate(a.trial_ends)}</td>
+                  <td data-label="Actions" className="px-6 py-3.5">
                     <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
                       {a.status === 'waitlisted' && (
                         <button onClick={() => handleApprove(a.id)} disabled={actionLoading}

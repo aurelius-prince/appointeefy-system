@@ -193,15 +193,14 @@ export default function SuperSubscriptions() {
               {!loading && filtered.length === 0 && <tr><td colSpan={6} className="px-6 py-8 text-center text-gray-400">No accounts found.</td></tr>}
               {filtered.map(a => (
                 <tr key={a.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setSelected(a)}>
-                  <td className="px-6 py-3">
-                    <p className="font-medium text-gray-800">{a.name}</p>
-                    <p className="text-xs text-gray-400">{a.email}</p>
+                  <td data-label="User" className="px-6 py-3">
+                    <div><p className="font-medium text-gray-800">{a.name}</p><p className="text-xs text-gray-400">{a.email}</p></div>
                   </td>
-                  <td className="px-6 py-3 text-gray-600">{a.business_type}</td>
-                  <td className="px-6 py-3"><Badge status={a.status} /></td>
-                  <td className="px-6 py-3 text-gray-500 text-xs">{fmtDate(a.trial_ends)}</td>
-                  <td className="px-6 py-3 text-gray-500 text-xs">{fmtDate(a.subscribed_until)}</td>
-                  <td className="px-6 py-3" onClick={e => e.stopPropagation()}>
+                  <td data-label="Business Type" className="px-6 py-3 text-gray-600">{a.business_type}</td>
+                  <td data-label="Status" className="px-6 py-3"><Badge status={a.status} /></td>
+                  <td data-label="Trial Ends" className="px-6 py-3 text-gray-500 text-xs">{fmtDate(a.trial_ends)}</td>
+                  <td data-label="Subscribed Until" className="px-6 py-3 text-gray-500 text-xs">{fmtDate(a.subscribed_until)}</td>
+                  <td data-label="Actions" className="px-6 py-3" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center gap-2">
                       {a.status === 'trial' && (
                         <button onClick={() => { setModal({ account: a, mode: 'activate' }); setSelectedPlan('Monthly') }}

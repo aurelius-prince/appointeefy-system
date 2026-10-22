@@ -114,7 +114,7 @@ export default function SuperDashboard() {
           title="Pending Approvals" count={pendingApproval.length} countColor="text-blue-600"
           onViewAll={() => navigate('/superadmin/accounts')}>
           {pendingApproval.length === 0
-            ? <p className="px-5 py-4 text-sm text-gray-400 text-center">No pending approvals. 🎉</p>
+            ? <p className="px-5 py-4 text-sm text-gray-400 text-center">No pending approvals.</p>
             : pendingApproval.map(a => (
                 <div key={a.id} className="flex items-center justify-between px-5 py-3 hover:bg-gray-50">
                   <div className="flex items-center gap-3">
@@ -135,7 +135,7 @@ export default function SuperDashboard() {
           title="Suspended Accounts" count={suspended.length} countColor="text-red-500"
           onViewAll={() => navigate('/superadmin/accounts')}>
           {suspended.length === 0
-            ? <p className="px-5 py-4 text-sm text-gray-400 text-center">No suspended accounts. 🎉</p>
+            ? <p className="px-5 py-4 text-sm text-gray-400 text-center">No suspended accounts.</p>
             : suspended.map(a => (
                 <div key={a.id} className="flex items-center justify-between px-5 py-3 hover:bg-gray-50">
                   <div className="flex items-center gap-3">
@@ -198,13 +198,13 @@ export default function SuperDashboard() {
               )}
               {recent.map(r => (
                 <tr key={r.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-3 font-medium text-gray-800">{r.name}</td>
-                  <td className="px-6 py-3 text-gray-500">{r.email}</td>
-                  <td className="px-6 py-3">
+                  <td data-label="Business" className="px-6 py-3 font-medium text-gray-800">{r.name}</td>
+                  <td data-label="Email" className="px-6 py-3 text-gray-500">{r.email}</td>
+                  <td data-label="Type" className="px-6 py-3">
                     <span className="bg-blue-50 text-blue-600 text-xs font-medium px-2.5 py-1 rounded-full">{r.business_type}</span>
                   </td>
-                  <td className="px-6 py-3"><Badge status={r.status} /></td>
-                  <td className="px-6 py-3 text-gray-500">{fmtDate(r.created_at?.split('T')[0])}</td>
+                  <td data-label="Status" className="px-6 py-3"><Badge status={r.status} /></td>
+                  <td data-label="Registered" className="px-6 py-3 text-gray-500">{fmtDate(r.created_at?.split('T')[0])}</td>
                 </tr>
               ))}
             </tbody>

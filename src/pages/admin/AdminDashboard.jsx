@@ -13,7 +13,7 @@ const fmtDate = (iso) =>
 const daysDiff = (a, b) => Math.max(1, Math.ceil((new Date(b) - new Date(a)) / 86400000))
 
 const STATUS_DOT  = { pending: 'bg-yellow-400', approved: 'bg-blue-400', confirmed: 'bg-blue-400', 'awaiting payment': 'bg-purple-400', paid: 'bg-green-400', completed: 'bg-green-400', cancelled: 'bg-red-400' }
-const STATUS_LINE = { pending: 'bg-yellow-200 text-yellow-800', approved: 'bg-blue-200 text-blue-800', confirmed: 'bg-blue-200 text-blue-800', 'awaiting payment': 'bg-purple-200 text-purple-800', paid: 'bg-purple-200 text-purple-800', completed: 'bg-green-200 text-green-800', cancelled: 'bg-red-200 text-red-700' }
+const STATUS_LINE = { pending: 'bg-yellow-200 text-yellow-800', approved: 'bg-blue-200 text-blue-800', confirmed: 'bg-blue-200 text-blue-800', 'awaiting payment': 'bg-purple-200 text-purple-800', paid: 'bg-green-200 text-green-800', completed: 'bg-green-200 text-green-800', cancelled: 'bg-red-200 text-red-700' }
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const DAYS_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 const DAYS_FULL  = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
@@ -71,6 +71,12 @@ export default function AdminDashboard() {
   const getDayApts = (day) => {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     return aptsForDay(dateStr)
+  }
+  const miniSegment = (apt, day, dateStr) => {
+    const weekday = new Date(year, month, day).getDay()
+    const startsHere = apt.checkIn === dateStr || weekday === 0 || day === 1
+    const remaining = Math.round((new Date(`${apt.checkOut}T00:00:00`) - new Date(`${dateStr}T00:00:00`)) / 86400000) + 1
+    return { startsHere, span: Math.max(1, Math.min(remaining, 7 - weekday, daysInMonth - day + 1)) }
   }
   const selectedApts = selectedDay ? getDayApts(selectedDay) : []
   const isToday = (day) => today.getFullYear() === year && today.getMonth() === month && today.getDate() === day
@@ -194,11 +200,12 @@ export default function AdminDashboard() {
                     {day}
                   </div>
                   {apts.length > 0 && <PawPrint size={22} strokeWidth={2} className="absolute right-1 top-1 z-20 text-blue-300/80 pointer-events-none" />}
-                  <div className="flex flex-col gap-0.5 overflow-hidden">
+                  <div className="flex flex-col gap-0.5 overflow-visible">
                     {Array.from({ length: Math.min(miniLaneCount, 3) }).map((_, lane) => {
                       const apt = apts.find(item => miniLaneById[item.id] === lane)
-                      return apt ? (
-                        <div key={apt.id} className={`calendar-status-line relative z-10 flex h-5 items-center px-1.5 text-[10px] font-medium truncate ${(apt.checkIn === dateStr || new Date(year, month, day).getDay() === 0) ? 'is-start' : ''} ${(apt.checkOut === dateStr || new Date(year, month, day).getDay() === 6) ? 'is-end' : ''} ${STATUS_LINE[apt.status] || 'bg-gray-100 text-gray-500'}`}>
+                      const segment = apt && miniSegment(apt, day, dateStr)
+                      return apt && segment.startsHere ? (
+                        <div key={apt.id} style={{ '--calendar-span': segment.span }} className={`calendar-status-line mini-calendar-bar relative flex h-5 items-center px-1.5 text-[10px] font-medium truncate ${(apt.checkIn === dateStr || new Date(year, month, day).getDay() === 0) ? 'is-start' : ''} ${(apt.checkOut === dateStr || new Date(year, month, day).getDay() === 6 || day === daysInMonth) ? 'is-end' : ''} ${STATUS_LINE[apt.status] || 'bg-gray-100 text-gray-500'}`}>
                           {apt.checkIn === dateStr ? apt.customer.split(' ')[0] : '\u00a0'}
                         </div>
                       ) : <div key={`mini-empty-${lane}`} className="h-5" />

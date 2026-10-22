@@ -42,13 +42,9 @@ export default function Onboarding() {
   useEffect(() => {
     if (!user) return
     if (!user.needsOnboarding) {
-      if (window.location.pathname === '/onboarding') {
-        navigate('/login?already=1', { replace: true })
-      } else {
-        navigate(user.role === 'superadmin' ? '/superadmin/dashboard' : '/dashboard')
-      }
+      navigate(user.role === 'superadmin' ? '/superadmin/dashboard' : '/dashboard', { replace: true })
     }
-  }, [user])
+  }, [user, navigate])
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
 

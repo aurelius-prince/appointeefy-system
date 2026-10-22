@@ -138,21 +138,21 @@ export default function SuperDiscounts() {
             {!loading && discounts.length === 0 && <tr><td colSpan={7} className="px-6 py-8 text-center text-gray-400">No discount codes yet.</td></tr>}
             {discounts.map(d => (
               <tr key={d.id} className="hover:bg-gray-50">
-                <td className="px-6 py-3">
+                <td data-label="Code" className="px-6 py-3">
                   <div className="flex items-center gap-2">
                     <Tag size={13} className="text-blue-500" />
                     <span className="font-mono font-semibold text-gray-800">{d.code}</span>
                     <CopyBtn text={d.code} />
                   </div>
                 </td>
-                <td className="px-6 py-3 font-semibold text-gray-800">
+                <td data-label="Discount" className="px-6 py-3 font-semibold text-gray-800">
                   {d.type === 'percentage' ? `${d.value}% off` : `₱${d.value} off`}
                 </td>
-                <td className="px-6 py-3 text-gray-600 capitalize">{d.applicable === 'both' ? 'Monthly & Annual' : d.applicable}</td>
-                <td className="px-6 py-3 text-gray-500">{d.used_count}/{d.usage_limit}</td>
-                <td className="px-6 py-3 text-gray-500">{fmtDate(d.expiry_date)}</td>
-                <td className="px-6 py-3"><Badge status={getStatus(d)} /></td>
-                <td className="px-6 py-3">
+                <td data-label="Applicable" className="px-6 py-3 text-gray-600 capitalize">{d.applicable === 'both' ? 'Monthly & Annual' : d.applicable}</td>
+                <td data-label="Usage" className="px-6 py-3 text-gray-500">{d.used_count}/{d.usage_limit}</td>
+                <td data-label="Expiry" className="px-6 py-3 text-gray-500">{fmtDate(d.expiry_date)}</td>
+                <td data-label="Status" className="px-6 py-3"><Badge status={getStatus(d)} /></td>
+                <td data-label="Actions" className="px-6 py-3">
                   <div className="flex items-center gap-2">
                     <button onClick={() => toggleDiscount(d.id, d.is_active)} className={d.is_active ? 'text-green-500' : 'text-gray-400'}>
                       {d.is_active ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}

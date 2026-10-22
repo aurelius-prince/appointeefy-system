@@ -36,7 +36,7 @@ export default function AdminLayout() {
   const [selectedNotif, setSelectedNotif] = useState(null)
   const [accountStatus, setAccountStatus] = useState(null)
   const [accountLogo, setAccountLogo] = useState(null)
-  const [theme, setTheme] = useState(() => localStorage.getItem(`appointeefy-theme-${user?.account_id}`) || 'ocean')
+  const [theme, setTheme] = useState(() => localStorage.getItem(`appointeefy-theme-${user?.account_id}`) || 'pink')
   const mainRef = useRef(null)
   const mobileNavRef = useRef(null)
   const mobileTrailRef = useRef(null)
@@ -44,13 +44,13 @@ export default function AdminLayout() {
   const previousMobileIndex = useRef(null)
 
   useEffect(() => {
-    const onThemeChange = (event) => setTheme(event.detail || 'ocean')
+    const onThemeChange = (event) => setTheme(event.detail || 'pink')
     window.addEventListener('appointeefy-theme-change', onThemeChange)
     return () => window.removeEventListener('appointeefy-theme-change', onThemeChange)
   }, [])
 
   useEffect(() => {
-    if (user?.account_id) setTheme(localStorage.getItem(`appointeefy-theme-${user.account_id}`) || 'ocean')
+    if (user?.account_id) setTheme(localStorage.getItem(`appointeefy-theme-${user.account_id}`) || 'pink')
   }, [user?.account_id])
 
   const isLocked = ['waitlisted', 'expired', 'suspended'].includes(accountStatus)

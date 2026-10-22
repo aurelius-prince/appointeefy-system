@@ -11,7 +11,7 @@ export default function AdminProfile() {
   const isSetup = searchParams.get('setup') === '1'
 
   const [form, setForm] = useState({ name: '', phone: '', address: '', bio: '', logo: null })
-  const [theme, setTheme] = useState('ocean')
+  const [theme, setTheme] = useState('pink')
   const [account, setAccount] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)

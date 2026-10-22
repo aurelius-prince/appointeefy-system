@@ -1,14 +1,13 @@
 import { useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
-import { LogIn, Menu, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Menu, X } from 'lucide-react'
 import AppLogo from '../../assets/Logo.png'
 
 export default function ClientNavbar() {
-  const { pathname } = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
 
   const links = [
-    { to: '/#how-it-works', label: 'How It Works' },
+    { to: '/#features', label: 'Features' },
     { to: '/#pricing', label: 'Pricing' },
   ]
 

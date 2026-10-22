@@ -1,6 +1,7 @@
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import AppLogo from '../../assets/Logo.png'
 import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../context/AuthContext'
 
 const handleGoogleRegister = async () => {
   await supabase.auth.signInWithOAuth({
@@ -12,6 +13,8 @@ const handleGoogleRegister = async () => {
 }
 
 export default function AdminRegister() {
+  const { user } = useAuth()
+  if (user) return <Navigate to={user.needsOnboarding ? '/onboarding' : user.role === 'superadmin' ? '/superadmin/dashboard' : '/dashboard'} replace />
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 w-full max-w-md p-8">
@@ -25,7 +28,7 @@ export default function AdminRegister() {
 
         {/* Trial badge */}
         <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 mb-6 text-center">
-          <p className="text-sm font-semibold text-blue-700">🎉 30-Day Free Trial</p>
+          <p className="text-sm font-semibold text-blue-700">30-Day Free Trial</p>
           <p className="text-xs text-blue-500 mt-0.5">Full access · No credit card required</p>
         </div>
 

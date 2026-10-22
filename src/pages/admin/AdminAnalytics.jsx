@@ -71,7 +71,7 @@ export default function AdminAnalytics() {
 
   const statusColors = {
     pending: 'bg-yellow-400',
-    approved: 'bg-red-400',
+    approved: 'bg-blue-400',
     'awaiting payment': 'bg-purple-400',
     paid: 'bg-green-500',
     completed: 'bg-green-400',
@@ -112,7 +112,7 @@ export default function AdminAnalytics() {
             {revenueByMonth.map(({ label, value }) => (
               <div key={label} className="flex-1 flex flex-col items-center gap-1 h-full">
                 <div className="w-full flex items-end justify-center flex-1">
-                  <div className="w-full bg-blue-500 rounded-t-md transition-all"
+                  <div className="analytics-chart-accent w-full rounded-t-md transition-all"
                     style={{ height: `${(value / maxRevenue) * 100}%`, minHeight: value > 0 ? '4px' : '0' }}
                     title={`₱${value.toLocaleString()}`} />
                 </div>
@@ -130,7 +130,7 @@ export default function AdminAnalytics() {
             {aptsByMonth.map(({ label, value }) => (
               <div key={label} className="flex-1 flex flex-col items-center gap-1 h-full">
                 <div className="w-full flex items-end justify-center flex-1">
-                  <div className="w-full bg-purple-400 rounded-t-md transition-all"
+                  <div className="analytics-chart-accent w-full rounded-t-md transition-all"
                     style={{ height: `${(value / maxApts) * 100}%`, minHeight: value > 0 ? '4px' : '0' }}
                     title={`${value} appointments`} />
                 </div>
@@ -199,7 +199,7 @@ export default function AdminAnalytics() {
                     <span className="text-sm font-semibold text-gray-800">₱{revenue.toLocaleString()}</span>
                   </div>
                   <div className="w-full bg-gray-100 rounded-full h-1.5">
-                    <div className="h-1.5 rounded-full bg-blue-400"
+                    <div className="analytics-chart-accent h-1.5 rounded-full"
                       style={{ width: `${(revenue / maxSvcRevenue) * 100}%` }} />
                   </div>
                 </div>
