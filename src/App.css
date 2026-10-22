@@ -806,7 +806,7 @@ body:has(.admin-theme-amber) > .subscription-payment-backdrop { --sub-accent: #d
 
   .mobile-bottom-nav {
     --mobile-nav-accent: #4358f6;
-    position: fixed; z-index: 70; left: 20px; right: 20px; bottom: calc(10px + env(safe-area-inset-bottom));
+    position: fixed; z-index: 70; left: 14px; right: 14px; bottom: calc(10px + env(safe-area-inset-bottom));
     display: block; height: 78px; max-width: 396px; margin: 0 auto;
   }
   .mobile-nav-filter { position: absolute; width: 0; height: 0; overflow: hidden; }
@@ -867,11 +867,12 @@ body:has(.admin-theme-amber) > .subscription-payment-backdrop { --sub-accent: #d
   .dashboard-calendar > div:nth-child(2) span { font-size: 10px; }
   .dashboard-calendar > div:nth-child(3) { padding: 8px 8px 2px; }
   .dashboard-calendar > div:nth-child(3) > div { font-size: 11px; }
-  .dashboard-calendar-grid { margin: 0 8px 10px !important; grid-auto-rows: minmax(56px, auto); min-height: 0 !important; flex: none !important; border-radius: 12px; overflow: hidden; }
+  .dashboard-calendar-grid { margin: 0 8px 10px !important; grid-auto-rows: minmax(56px, auto); min-height: 0 !important; flex: none !important; border-radius: 12px; overflow: visible; }
   .dashboard-calendar-grid > div { min-height: 56px !important; }
   .dashboard-calendar-grid .w-6 { width: 20px; height: 20px; margin: 3px 0 2px 3px; font-size: 11px; }
   .dashboard-calendar-grid svg { width: 13px; height: 13px; top: 4px; right: 3px; }
   .dashboard-calendar-grid .h-5 { height: 10px; font-size: 8px; padding-inline: 2px; }
+  .dashboard-calendar-grid .calendar-status-line { position: relative; z-index: 30; }
   .dashboard-calendar-grid .h-5:nth-of-type(n+3) { display: none; }
   .full-calendar-backdrop { z-index: 40; inset: 10px 10px 86px; padding: 0; align-items: stretch; background: rgb(15 23 42 / .62) !important; isolation: isolate; overflow: hidden; border-radius: 22px; }
   .full-calendar-dialog { position: relative; z-index: 1; width: 100% !important; height: 100% !important; border-radius: 22px; min-width: 0; background: #fff !important; opacity: 1 !important; box-shadow: 0 20px 50px rgb(15 23 42 / .22); }
