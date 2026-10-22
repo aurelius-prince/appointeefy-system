@@ -16,7 +16,7 @@ export default function AdminLogin() {
     setBusy(true)
     setError('')
     try {
-      const { error: signInError } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/onboarding` } })
+      const { error: signInError } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/login` } })
       if (signInError) throw signInError
     } catch (cause) {
       setError(cause?.message || 'Could not start Google sign-in. Please try again.')

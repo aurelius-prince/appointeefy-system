@@ -3,18 +3,19 @@ import { supabase } from '../lib/supabase'
 
 const AuthContext = createContext(null)
 
-const buildUser = (authUser) => {
+const buildUser = (authUser, profile = null) => {
   if (!authUser) return null
   const meta = authUser.user_metadata || {}
-  const role = meta.role || null
+  const role = profile?.role || meta.role || null
+  const accountId = profile?.account_id || meta.account_id || null
   return {
     id: authUser.id,
-    name: meta.name || meta.full_name || authUser.email,
+    name: profile?.name || meta.name || meta.full_name || authUser.email,
     email: authUser.email,
     role,
-    account_id: meta.account_id || null,
+    account_id: accountId,
     // needsOnboarding only for non-superadmin users without account_id
-    needsOnboarding: role !== 'superadmin' && (!role || !meta.account_id),
+    needsOnboarding: role !== 'superadmin' && (!role || !accountId),
   }
 }
 
@@ -22,14 +23,28 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  const hydrateUser = async (authUser) => {
+    if (!authUser) return null
+    const { data: profile } = await supabase
+      .from('users')
+      .select('account_id, role, name')
+      .eq('email', authUser.email)
+      .maybeSingle()
+    return buildUser(authUser, profile)
+  }
+
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(buildUser(session?.user ?? null))
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      setUser(await hydrateUser(session?.user ?? null))
       setLoading(false)
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(buildUser(session?.user ?? null))
+      const authUser = session?.user ?? null
+      setUser(buildUser(authUser))
+      // Run the profile lookup after the auth callback returns; Supabase warns
+      // against awaiting another Supabase request inside this callback.
+      Promise.resolve().then(async () => setUser(await hydrateUser(authUser)))
     })
 
     return () => subscription.unsubscribe()
@@ -38,7 +53,7 @@ export function AuthProvider({ children }) {
   const login = async ({ email, password }) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw new Error(error.message)
-    const profile = buildUser(data.user)
+    const profile = await hydrateUser(data.user)
     if (!profile.role) throw new Error('User role not set. Contact support.')
     setUser(profile)
     return profile
@@ -51,7 +66,7 @@ export function AuthProvider({ children }) {
 
   const refreshUser = async () => {
     const { data: { user: authUser } } = await supabase.auth.getUser()
-    if (authUser) setUser(buildUser(authUser))
+    setUser(await hydrateUser(authUser))
   }
 
   return (
