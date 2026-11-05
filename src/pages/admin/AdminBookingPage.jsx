@@ -8,12 +8,10 @@ import AdminServices from './AdminServices'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
+import { DEFAULT_SETTINGS, DEFAULT_HOURS as BP_DEFAULT_HOURS, normalizeSettings, fetchSettingsByAccount, saveSettings, readLegacySettings, slugify } from '../../lib/bookingSettings'
 import ReactCrop, { centerCrop, makeAspectCrop } from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
 import EasyCrop from 'react-easy-crop'
-
-const ls = (key, fb) => { try { const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : fb } catch { return fb } }
-const save = (key, val) => { try { localStorage.setItem(key, JSON.stringify(val)) } catch {} }
 
 const THEMES = [
   { name: 'Ocean',     primary: '#2563eb', secondary: '#eff6ff', text: '#1e3a5f' },
@@ -57,7 +55,6 @@ const TABS = [
 ]
 
 const AVAIL_DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
-const DEFAULT_HOURS = { Monday:true, Tuesday:true, Wednesday:true, Thursday:true, Friday:true, Saturday:true, Sunday:false }
 
 const fmtDuration = (s) => s?.pricingType === 'per_day'
   ? `${s.duration} day${s.duration > 1 ? 's' : ''}`
@@ -91,12 +88,20 @@ const uploadToStorage = async (file, accountId) => {
   return data.publicUrl
 }
 
-const removeFromStorage = async (url) => {
-  if (!url || !url.includes('appointeefy-assets')) return
-  try {
-    const path = url.split('/appointeefy-assets/')[1]
-    if (path) await supabase.storage.from('appointeefy-assets').remove([decodeURIComponent(path)])
-  } catch {}
+// Removed images are only queued here; the file is deleted from storage after the settings are saved,
+// otherwise an unsaved removal would leave the live public page pointing at a deleted file.
+const pendingRemovals = new Set()
+const removeFromStorage = async (url) => { if (url && url.includes('appointeefy-assets')) pendingRemovals.add(url) }
+const flushRemovals = async (settings) => {
+  const inUse = JSON.stringify(settings)
+  for (const url of [...pendingRemovals]) {
+    pendingRemovals.delete(url)
+    if (inUse.includes(url)) continue
+    try {
+      const path = url.split('/appointeefy-assets/')[1]
+      if (path) await supabase.storage.from('appointeefy-assets').remove([decodeURIComponent(path)])
+    } catch { /* best effort */ }
+  }
 }
 
 const inp = 'w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
@@ -1010,32 +1015,23 @@ export default function AdminBookingPage() {
   const editorRef = useRef()
   const [activeSection, setActiveSection] = useState(null)
 
-  const [general, setGeneralRaw] = useState(() => ls('bp_general', { businessName: "Juan's Pet Care", tagline: 'Trusted pet boarding in your area', logo: null, logoShape: 'circle' }))
-  const [hero, setHeroRaw] = useState(() => ls('bp_hero', { headline: 'Give Your Pet the Best Care', subheadline: 'Safe, comfortable, and loving pet boarding service.', images: [], imageShape: 'square' }))
-  const [booking, setBookingRaw] = useState(() => ls('bp_booking', {
-    title: 'Book Now', subtitle: 'Fill in the form below to reserve a spot for your pet.',
-    fields: { name: { show: true, required: true }, contact: { show: true, required: true }, email: { show: true, required: false }, facebook: { show: true, required: false }, notes: { show: true, required: false } }
-  }))
-  const [testimony, setTestimonyRaw] = useState(() => ls('bp_testimony', {
-    title: 'What Our Clients Say', bg: null,
-    items: [{ name: 'Maria S.', text: 'Amazing service! My dog loved it.', image: null }, { name: 'Jose R.', text: 'Very professional and caring staff.', image: null }, { name: 'Ana C.', text: 'Will definitely come back again!', image: null }]
-  }))
-  const [footer, setFooterRaw] = useState(() => ls('bp_footer', { phone: '09171234567', email: 'juan@email.com', address: '123 Mabini St, Quezon City', facebook: 'facebook.com/juanspetcare' }))
-  const [theme, setThemeRaw] = useState(() => ls('bp_theme', THEMES[0]))
-  const [petSitter, setPetSitterRaw] = useState(() => ls('bp_petSitter', { 
-    photo: null, photoShape: 'circle', name: 'Juan dela Cruz', 
-    description: 'Passionate pet sitter with 5+ years of experience.',
-    stats: [
-      { value: '500+', label: 'Happy Pets Served' },
-      { value: '4.9★', label: 'Average Rating' },
-      { value: '5 yrs', label: 'Experience' },
-    ]
-  }))
-  const [hours, setHours] = useState(() => ls('bp_hours', DEFAULT_HOURS))
-  const [allowOverlap, setAllowOverlap] = useState(() => ls('bp_allow_overlap', false))
+  // Settings live in Supabase (booking_page_settings). Start from defaults, then load the saved row.
+  const [settingsLoading, setSettingsLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [saveError, setSaveError] = useState('')
+  const [general, setGeneralRaw] = useState(DEFAULT_SETTINGS.general)
+  const [hero, setHeroRaw] = useState(DEFAULT_SETTINGS.hero)
+  const [booking, setBookingRaw] = useState(DEFAULT_SETTINGS.booking)
+  const [testimony, setTestimonyRaw] = useState(DEFAULT_SETTINGS.testimony)
+  const [footer, setFooterRaw] = useState(DEFAULT_SETTINGS.footer)
+  const [theme, setThemeRaw] = useState(THEMES[0])
+  const [petSitter, setPetSitterRaw] = useState(DEFAULT_SETTINGS.petSitter)
+  const [hours, setHours] = useState(BP_DEFAULT_HOURS)
+  const [allowOverlap, setAllowOverlap] = useState(false)
+  const [blocked, setBlocked] = useState([])
+  const [accountSlug, setAccountSlug] = useState('')
   const [showOverlapInfo, setShowOverlapInfo] = useState(false)
   const [overlapLang, setOverlapLang] = useState('en')
-  const [blocked, setBlocked] = useState([{ id: 1, date: '2024-06-25', reason: 'Holiday' }, { id: 2, date: '2024-07-04', reason: 'Personal leave' }])
   const [newBlock, setNewBlock] = useState({ date: '', reason: '' })
   const [availSaved, setAvailSaved] = useState(false)
 
@@ -1048,19 +1044,56 @@ export default function AdminBookingPage() {
 
   const petSittingService = services.find(s => s.name === 'Pet Sitting')
 
-  const mk = (setter, key) => (v) => {
-    const next = typeof v === 'function' ? v(getter(key)) : v
-    setter(next); save(key, next); setDirty(true)
-  }
-  const getter = (key) => ({ bp_general: general, bp_hero: hero, bp_booking: booking, bp_testimony: testimony, bp_footer: footer, bp_theme: theme, bp_petSitter: petSitter })[key]
+  const setGeneral  = (v) => { setGeneralRaw(prev => typeof v === 'function' ? v(prev) : v); setDirty(true) }
+  const setHero     = (v) => { setHeroRaw(prev => typeof v === 'function' ? v(prev) : v); setDirty(true) }
+  const setBooking  = (v) => { setBookingRaw(prev => typeof v === 'function' ? v(prev) : v); setDirty(true) }
+  const setTestimony= (v) => { setTestimonyRaw(prev => typeof v === 'function' ? v(prev) : v); setDirty(true) }
+  const setFooter   = (v) => { setFooterRaw(prev => typeof v === 'function' ? v(prev) : v); setDirty(true) }
+  const setTheme    = (v) => { setThemeRaw(v); setDirty(true) }
+  const setPetSitter= (v) => { setPetSitterRaw(prev => typeof v === 'function' ? v(prev) : v); setDirty(true) }
 
-  const setGeneral  = (v) => { const n = typeof v === 'function' ? v(general)  : v; setGeneralRaw(n);  save('bp_general',  n); setDirty(true) }
-  const setHero     = (v) => { const n = typeof v === 'function' ? v(hero)     : v; setHeroRaw(n);     save('bp_hero',     n); setDirty(true) }
-  const setBooking  = (v) => { const n = typeof v === 'function' ? v(booking)  : v; setBookingRaw(n);  save('bp_booking',  n); setDirty(true) }
-  const setTestimony= (v) => { const n = typeof v === 'function' ? v(testimony): v; setTestimonyRaw(n);save('bp_testimony',n); setDirty(true) }
-  const setFooter   = (v) => { const n = typeof v === 'function' ? v(footer)   : v; setFooterRaw(n);   save('bp_footer',   n); setDirty(true) }
-  const setTheme    = (v) => { setThemeRaw(v); save('bp_theme', v); setDirty(true) }
-  const setPetSitter= (v) => { const n = typeof v === 'function' ? v(petSitter): v; setPetSitterRaw(n);save('bp_petSitter',n); setDirty(true) }
+  useEffect(() => {
+    if (!dirty) return
+    const warn = (e) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [dirty])
+
+  const applySettings = (st) => {
+    setGeneralRaw(st.general); setHeroRaw(st.hero); setBookingRaw(st.booking); setTestimonyRaw(st.testimony)
+    setFooterRaw(st.footer); setThemeRaw(st.theme); setPetSitterRaw(st.petSitter)
+    setHours(st.hours); setAllowOverlap(st.allowOverlap); setBlocked(st.blockedDates)
+  }
+  const currentSettings = () => ({ general, hero, booking, testimony, footer, theme, petSitter, hours, allowOverlap, blockedDates: blocked })
+
+  useEffect(() => {
+    if (!accountId) { setSettingsLoading(false); return }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const [saved, accountRes] = await Promise.all([
+          fetchSettingsByAccount(supabase, accountId),
+          supabase.from('accounts').select('slug, name').eq('id', accountId).maybeSingle(),
+        ])
+        if (cancelled) return
+        if (accountRes.data?.slug) setAccountSlug(accountRes.data.slug)
+        if (saved) { applySettings(saved) }
+        else {
+          // First visit after the DB migration: pull in any old browser-only settings, else start from account defaults.
+          const legacy = readLegacySettings(window.localStorage)
+          const hasLegacy = Object.keys(legacy).length > 0
+          const base = normalizeSettings({ ...legacy, ...(hasLegacy ? {} : { general: { businessName: accountRes.data?.name || DEFAULT_SETTINGS.general.businessName } }) })
+          applySettings(base)
+          if (hasLegacy) setDirty(true) // prompt the provider to save the migrated settings to the database
+        }
+      } catch (err) {
+        if (!cancelled) setLoadError(err?.message || 'Could not load booking page settings.')
+      } finally {
+        if (!cancelled) setSettingsLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [accountId])
 
   const updateTestimony = (i, field, val) =>
     setTestimony(prev => ({ ...prev, items: prev.items.map((t, idx) => idx === i ? { ...t, [field]: val } : t) }))
@@ -1083,30 +1116,36 @@ export default function AdminBookingPage() {
     setPetTypes(prev => [...prev, t]); setNewPetType(''); setPetTypeError('')
   }
   const toggleDay = (day) => { setHours(h => ({ ...h, [day]: !h[day] })); setDirty(true) }
-  const handleAvailSave = () => { save('bp_hours', hours); save('bp_allow_overlap', allowOverlap); setAvailSaved(true); setTimeout(() => setAvailSaved(false), 2000) }
+  const handleAvailSave = async () => { if (await persist()) { setAvailSaved(true); setTimeout(() => setAvailSaved(false), 2000) } }
   const addBlock = () => {
-    if (!newBlock.date) return
-    setBlocked(prev => [...prev, { id: Date.now(), ...newBlock }]); setNewBlock({ date: '', reason: '' })
+    if (!newBlock.date || blocked.some(b => b.date === newBlock.date)) return
+    setBlocked(prev => [...prev, { id: Date.now(), ...newBlock }].sort((a, b) => a.date.localeCompare(b.date))); setNewBlock({ date: '', reason: '' }); setDirty(true)
   }
 
-  const bookingUrl = (() => {
-    const slug = general.businessName.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || 'my-page'
-    return `${window.location.origin}/book/${slug}`
-  })()
+  // The public route resolves accounts.slug, so the link must use the stored slug (not the editable business name).
+  const bookingUrl = `${window.location.origin}/book/${accountSlug || slugify(general.businessName) || 'my-page'}`
 
   // Switch tab and scroll preview to section
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  const handleSave = () => {
-    setSaving(true)
-    setTimeout(() => {
-      setSaving(false)
-      setSaved(true)
+  const persist = async () => {
+    setSaving(true); setSaveError('')
+    try {
+      const clean = await saveSettings(supabase, accountId, currentSettings())
+      setBlocked(clean.blockedDates)
       setDirty(false)
-      setTimeout(() => setSaved(false), 2000)
-    }, 600)
+      flushRemovals(clean)
+      return true
+    } catch (err) {
+      setSaveError(err?.message || 'Failed to save. Please try again.')
+      return false
+    } finally { setSaving(false) }
+  }
+
+  const handleSave = async () => {
+    if (await persist()) { setSaved(true); setTimeout(() => setSaved(false), 2000) }
   }
 
   const handleTabChange = (id) => {
@@ -1420,8 +1459,8 @@ export default function AdminBookingPage() {
                 </div>
               </div>
               <div role="button" tabIndex={0} aria-pressed={allowOverlap}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setAllowOverlap(v => !v) } }}
-                onClick={() => setAllowOverlap(v => !v)}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); { setAllowOverlap(v => !v); setDirty(true) } } }}
+                onClick={() => { setAllowOverlap(v => !v); setDirty(true) }}
                 className={`w-10 h-5 rounded-full transition-colors relative shrink-0 cursor-pointer ${allowOverlap ? 'bg-blue-500' : 'bg-gray-300'}`}>
                 <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${allowOverlap ? 'translate-x-5' : 'translate-x-0.5'}`} />
               </div>
@@ -1445,7 +1484,7 @@ export default function AdminBookingPage() {
                 : blocked.map(b => (
                   <div key={b.id} className="flex items-center justify-between px-4 py-3">
                     <p className="text-sm text-gray-700">{new Date(b.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}</p>
-                    <button onClick={() => setBlocked(prev => prev.filter(x => x.id !== b.id))}
+                    <button onClick={() => { setBlocked(prev => prev.filter(x => x.id !== b.id)); setDirty(true) }}
                       className="p-1 text-gray-400 hover:text-red-500 rounded">
                       <X size={14} />
                     </button>
@@ -1547,8 +1586,10 @@ export default function AdminBookingPage() {
           <div>
             <h2 className="font-bold text-gray-800 text-sm">Booking Page</h2>
             {dirty && <span className="text-xs text-orange-500 font-medium">● Unsaved changes</span>}
+            {saveError && <span className="block text-xs text-red-500 font-medium" role="alert">{saveError}</span>}
+            {loadError && <span className="block text-xs text-red-500 font-medium" role="alert">{loadError}</span>}
           </div>
-          <button onClick={handleSave} disabled={!dirty || saving}
+          <button onClick={handleSave} disabled={!dirty || saving || settingsLoading || !!loadError}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
               dirty ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
             }`}>

@@ -5,6 +5,7 @@ import PageHeader from '../../components/common/PageHeader'
 import { useBookings } from '../../context/BookingContext'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { fetchSettingsByAccount } from '../../lib/bookingSettings'
 
 const splitCustomerNotes = (notes = '') => {
   const lines = String(notes).split('\n').map(line => line.trim()).filter(Boolean)
@@ -124,12 +125,15 @@ const STATUS_REVERSE = {
 }
 
 export default function AdminAppointments() {
-  function ls(key, fallback) {
-    try { const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback } catch { return fallback }
-  }
-  const general = ls('bp_general', { businessName: 'Calendaryo', logo: null })
   const { bookings: appointments, setBookings: setAppointments, updateBooking } = useBookings()
   const { user } = useAuth()
+  const [general, setGeneral] = useState({ businessName: 'Calendaryo', logo: null })
+  useEffect(() => {
+    if (!user?.account_id) return
+    fetchSettingsByAccount(supabase, user.account_id)
+      .then(st => { if (st) setGeneral(st.general) })
+      .catch(() => {})
+  }, [user?.account_id])
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('active')
   const [statusFilterOpen, setStatusFilterOpen] = useState(false)

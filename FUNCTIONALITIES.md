@@ -46,11 +46,11 @@ Supabase is used for authentication, database access, storage, and selected real
 - **Related files:** `src/pages/public/BookingPage.jsx`.
 - **Supabase/backend:** `accounts`, `services`, `provider_pet_types`, `appointments`; `supabase.from(...).select()`.
 - **Inputs:** Provider slug, dates, times, customer name, contact, email, Facebook, notes, selected services, pet types, and counts.
-- **Outputs:** New `appointments` row with transaction code, customer data, schedule, price, notes, and `pending` status.
+- **Outputs:** New `appointments` row with transaction code, customer data, schedule, price, notes, and `pending` status. A database trigger (`app_notify_provider_of_booking`, `supabase/secure_booking_notifications.sql`) then creates the provider's "New booking request" notification with type `message`.
 - **Validation:** Required customer name/contact; optional fields follow booking settings; at least one pet/service selection; date/time and overlap checks.
-- **Permissions:** Public insert access depends on Supabase policies; **Needs Verification**.
+- **Permissions:** Anonymous users can insert `pending` `appointments` and read schedule columns for availability (`supabase/secure_appointments.sql`). They cannot read customer details, update or delete `appointments`, or insert `notifications` directly.
 - **Dependencies:** Provider account, services, booking-page settings, availability settings, and Supabase insert permission.
-- **Status:** Implemented, with limitations. Public settings are read from browser storage and may not match the provider/device.
+- **Status:** Implemented, with limitations. Public settings are read from `booking_page_settings`.
 
 ### PUB-003 — Booking Price Calculation
 
@@ -297,7 +297,7 @@ Supabase is used for authentication, database access, storage, and selected real
 - Password reset uses email OTP, `verifyOtp`, and `updateUser`.
 - `ProtectedRoute` redirects unauthenticated users to the correct login route, sends incomplete provider accounts to onboarding, and rejects role mismatches.
 - Provider access is associated with `account_id` from auth metadata.
-- Database-level RLS and privileged-operation enforcement are **Needs Verification**.
+- **2026-11-06 update:** RLS and role permissions were tightened for `appointments`, `notifications`, `payments`, `discounts`, `services`, `provider_pet_types`, `accounts`, `users`, and `registration_requests` (`supabase/secure_*.sql`). Anonymous access was verified with the Supabase client; provider and superadmin rules were rehearsed in the database, and real-app testing is **Needs Verification**. `supabase/payments_quantity.sql` adds `payments.quantity`, and `supabase/payment_integrity.sql` makes the database recalculate provider payment amounts from `plans` and `discounts` and block later edits to amount, quantity, and plan. Logged-in providers can still read other accounts' details.
 
 ## 8. Database-Related Functionalities
 

@@ -35,7 +35,8 @@ const load = (key, fallback) => {
   try {
     const version = localStorage.getItem('cal_version')
     if (version !== DATA_VERSION) {
-      localStorage.clear()
+      // Only reset this module's own keys; clear() would wipe unrelated data (theme, notification read markers).
+      Object.keys(localStorage).filter(k => k.startsWith('cal_')).forEach(k => localStorage.removeItem(k))
       localStorage.setItem('cal_version', DATA_VERSION)
       return fallback
     }

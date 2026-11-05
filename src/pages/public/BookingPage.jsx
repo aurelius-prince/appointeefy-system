@@ -3,10 +3,8 @@ import { ChevronLeft, ChevronRight, PawPrint } from 'lucide-react'
 import BookingFooter from '../../components/common/BookingFooter'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
-
-const ls = (key, fallback) => {
-  try { const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback } catch { return fallback }
-}
+import { fetchSettingsByAccount, normalizeSettings } from '../../lib/bookingSettings'
+import { inclusiveDays, totalHoursBetween, calcTotalPrice, hasConfirmedOverlap, validateDateRange, validateCustomer, receiptNumber, toDateStr } from '../../lib/bookingLogic'
 
 const uniqueBy = (items = [], keyOf) => {
   const seen = new Set()
@@ -21,28 +19,7 @@ const uniqueBy = (items = [], keyOf) => {
 const DAYS = ['Su','Mo','Tu','We','Th','Fr','Sa']
 const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
 
-const receiptPrefix = (name) => {
-  const words = String(name || 'Business').trim().split(/\s+/).filter(Boolean)
-  const prefix = words.length > 1
-    ? words.map((word) => word[0]).join('')
-    : words[0].length >= 3 ? words[0].slice(0, 2) + words[0].slice(-1) : words[0]
-  return prefix.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4).padEnd(3, 'X')
-}
-
-const shortAccountCode = (accountId) => {
-  let hash = 0
-  for (const char of String(accountId || '')) hash = ((hash << 5) - hash + char.charCodeAt(0)) | 0
-  return Math.abs(hash).toString(36).toUpperCase().padStart(2, '0').slice(-2)
-}
-
-const receiptNumber = (businessName, accountId, id) => {
-  let hash = 0
-  for (const char of String(id || '')) hash = ((hash << 5) - hash + char.charCodeAt(0)) | 0
-  const sequence = String(Math.abs(hash) % 100000).padStart(5, '0')
-  return `${receiptPrefix(businessName)}-${shortAccountCode(accountId)}-${sequence}`
-}
-
-function MiniCalendar({ primaryColor, selectedStart, selectedEnd, onSelect, hours, existingBookings = [], allowOverlap = false }) {
+function MiniCalendar({ primaryColor, selectedStart, selectedEnd, onSelect, hours, existingBookings = [], allowOverlap = false, blockedDates = [] }) {
   const today = new Date()
   const [view, setView] = useState({ year: today.getFullYear(), month: today.getMonth() })
   const firstDay = new Date(view.year, view.month, 1).getDay()
@@ -82,7 +59,7 @@ function MiniCalendar({ primaryColor, selectedStart, selectedEnd, onSelect, hour
           const start = isStart(d), end = isEnd(d), range = inRange(d)
           const dayName = DAY_NAMES[new Date(view.year, view.month, d).getDay()]
           // Treat today as closed once the current booking day has passed; users can only choose future dates.
-          const closed = (hours && hours[dayName] === false) || s <= todayStr
+          const closed = (hours && hours[dayName] === false) || s <= todayStr || blockedDates.some(b => b.date === s)
           const bookingStatus = bookingStatusForDay(d)
           const approved = bookingStatus === 'approved'
           const pending = bookingStatus === 'pending'
@@ -112,6 +89,8 @@ export default function BookingPage() {
   const [dbLoading, setDbLoading] = useState(true)
   const [accountId, setAccountId] = useState(null)
   const [existingBookings, setExistingBookings] = useState([])
+  const [settings, setSettings] = useState(() => normalizeSettings(null))
+  const [notFound, setNotFound] = useState(false)
 
   // Fetch services from Supabase by slug
   useEffect(() => {
@@ -122,8 +101,13 @@ export default function BookingPage() {
           .select('id')
           .eq('slug', slug)
           .single()
-        if (!account) { setDbLoading(false); return }
-      setAccountId(account.id)
+        if (!account) { setNotFound(true); setDbLoading(false); return }
+        setAccountId(account.id)
+
+        try {
+          const saved = await fetchSettingsByAccount(supabase, account.id)
+          if (saved) setSettings(saved)
+        } catch (e) { console.warn('Could not load booking page settings:', e) }
 
         const { data: svcs } = await supabase
           .from('services')
@@ -161,17 +145,9 @@ export default function BookingPage() {
     else setDbLoading(false)
   }, [slug])
 
-  const general   = ls('bp_general',   { businessName: 'Pet Care', tagline: '', logo: null, logoShape: 'circle' })
-  const hero      = ls('bp_hero',      { headline: 'Give Your Pet the Best Care', subheadline: '', images: [], bg: null })
-  const booking   = ls('bp_booking',   { title: 'Book Now', subtitle: '', showFacebook: true, showNotes: true })
-  const testimony = ls('bp_testimony', { title: 'What Our Clients Say', bg: null, items: [] })
-  const footer    = ls('bp_footer',    { phone: '', email: '', address: '', facebook: '' })
-  const theme     = ls('bp_theme',     { primary: '#2563eb', secondary: '#eff6ff', text: '#1e3a5f' })
-  const petSitter = ls('bp_petSitter', { photo: null, photoShape: 'circle', name: '', description: '' })
+  const { general, hero, booking, testimony, footer, theme, petSitter, hours, allowOverlap } = settings
   const services  = dbServices ?? []
-  const petTypes  = dbPetTypes ?? ls('svc_petTypes', ['Dog', 'Cat'])
-  const hours        = ls('bp_hours',        { Monday: true, Tuesday: true, Wednesday: true, Thursday: true, Friday: true, Saturday: true, Sunday: false })
-  const allowOverlap  = ls('bp_allow_overlap', false)
+  const petTypes  = dbPetTypes ?? ['Dog', 'Cat']
 
   const [step, setStep] = useState(1)
   const [start, setStart] = useState(null)
@@ -206,27 +182,7 @@ export default function BookingPage() {
     else { setEnd(dateStr) }
   }
 
-  // Check if a proposed time range overlaps any existing booking
-  const checkOverlap = (s, e, sTime, eTime) => {
-    if (!s || !e) return false
-    return existingBookings.some(b => {
-      if (b.status === 'pending') return false
-      if (!b.check_in || !b.check_out) return false
-
-      if (allowOverlap) {
-        // back-to-back ON: blocked only if new booking overlaps existing datetime range
-        const newStart = new Date(`${s}T${sTime}:00`).getTime()
-        const newEnd   = new Date(`${e}T${eTime}:00`).getTime()
-        const bStart   = new Date(`${b.check_in}T${b.time || '00:00'}:00`).getTime()
-        const bEnd     = new Date(`${b.check_out}T${b.end_time || '00:00'}:00`).getTime()
-        return newStart < bEnd && newEnd > bStart
-      }
-
-      // back-to-back OFF: block entire day range
-      return s <= b.check_out && e >= b.check_in
-    })
-  }
-  const hasOverlap = checkOverlap(start, end, startTime, endTime)
+  const hasOverlap = hasConfirmedOverlap({ bookings: existingBookings, start, end, startTime, endTime, allowOverlap })
   const hasPendingOverlap = start && end && existingBookings.some(b => b.status === 'pending' && b.check_in && b.check_out && start <= b.check_out && end >= b.check_in)
 
   const fmt = (dateStr) => {
@@ -238,69 +194,23 @@ export default function BookingPage() {
   const getCount = (id) => selectedServices.find(x => x.id === id)?.count || 0
   const totalPets = selectedServices.reduce((sum, x) => sum + x.count, 0)
   // Per-day bookings are inclusive: Oct 28 → Oct 29 counts as 2 service days.
-  const days = start && end ? Math.max(1, Math.round((new Date(end) - new Date(start)) / (1000 * 60 * 60 * 24)) + 1) : 0
-
-  // Compute total hours including time (for per_hour services)
-  const totalHours = (() => {
-    if (!start || !end) return 0
-    const [si, sm] = (startTime || '10:00').split(':').map(Number)
-    const [ei, em] = (endTime || '10:00').split(':').map(Number)
-    const startMs = new Date(`${start}T${String(si).padStart(2,'0')}:${String(sm).padStart(2,'0')}:00`).getTime()
-    const endMs = new Date(`${end}T${String(ei).padStart(2,'0')}:${String(em).padStart(2,'0')}:00`).getTime()
-    return Math.max(1, Math.ceil((endMs - startMs) / (1000 * 60 * 60)))
-  })()
+  const days = inclusiveDays(start, end)
+  const totalHours = totalHoursBetween(start, end, startTime || '10:00', endTime || '10:00')
 
   const uniqueServices = [...new Map(selectedServices.map(x => [x.serviceId, x])).values()]
   const primaryPricingType = uniqueServices[0]
     ? (services.find(s => s.id === uniqueServices[0].serviceId)?.pricingType || 'per_day')
     : 'per_day'
-  const totalPrice = uniqueServices.reduce((sum, x) => {
-    const svc = services.find(s => s.id === x.serviceId)
-    if (!svc) return sum
-    if (svc.pricingType === 'per_hour') {
-      const blocks = Math.max(1, Math.ceil(totalHours / (svc.duration || 1)))
-      return sum + (svc.price * blocks)
-    }
-    return sum + (svc.price * (days || 1))
-  }, 0).toFixed(0)
+  const totalPrice = String(Math.round(calcTotalPrice({ services, selected: selectedServices, days, hours: totalHours })))
   const servicesText = selectedServices.filter(s => s.count > 0).map(s => `${s.type} (${s.name}) x${s.count}`).join(', ')
 
-  const validate = () => {
-    const e = {}
-    if (!form.name.trim()) e.name = 'Required'
-    if (!form.contact.trim()) e.contact = 'Required'
-    if (!form.address.trim()) e.address = 'Required'
-    if ((booking.fields?.email?.required ?? false) && !form.email.trim()) e.email = 'Required'
-    if (booking.fields?.facebook?.required && !form.facebook.trim()) e.facebook = 'Required'
-    if (booking.fields?.notes?.required && !form.notes.trim()) e.notes = 'Required'
-    if (!totalPets) e.services = 'Please select at least one pet'
-    return e
-  }
+  const validate = () => validateCustomer(form, booking.fields, totalPets)
 
+  const todayStr = toDateStr(new Date())
   const continueToServices = () => {
-    if (!start || !end) {
-      setErrors(prev => ({ ...prev, dates: 'Choose both a check-in and check-out date to continue.' }))
-      return
-    }
-    const closedDates = []
-    for (let cursor = new Date(`${start}T00:00:00`); cursor <= new Date(`${end}T00:00:00`); cursor.setDate(cursor.getDate() + 1)) {
-      const dayName = DAY_NAMES[cursor.getDay()]
-      if (hours?.[dayName] === false) closedDates.push(dayName)
-    }
-    if (closedDates.length) {
-      setErrors(prev => ({ ...prev, dates: `This booking range includes a closed day (${[...new Set(closedDates)].join(', ')}). Choose dates within your available working days.` }))
-      return
-    }
-    if (hasOverlap) {
-      setErrors(prev => ({ ...prev, dates: 'These dates overlap an existing booking. Please choose another time.' }))
-      return
-    }
-    if (start === end && endTime <= startTime) {
-      setErrors(prev => ({ ...prev, dates: 'Check-out time must be later than check-in time for a same-day booking.' }))
-      return
-    }
-    setErrors(prev => ({ ...prev, dates: '' }))
-    setStep(2)
+    const msg = validateDateRange({ start, end, startTime, endTime, todayStr, settings, bookings: existingBookings })
+    setErrors(prev => ({ ...prev, dates: msg }))
+    if (!msg) setStep(2)
   }
 
   const continueToDetails = () => {
@@ -316,20 +226,26 @@ export default function BookingPage() {
     if (submitting) return
     const e = validate()
     if (Object.keys(e).length) { setErrors(e); return }
-    if (start === end && endTime <= startTime) {
-      setErrors(prev => ({ ...prev, dates: 'Check-out time must be later than check-in time for a same-day booking.' }))
-      setStep(1)
-      return
-    }
+    if (!accountId) { alert('This booking page is not available. Please contact the provider.'); return }
     setSubmitting(true)
+    // Re-check against the latest bookings: someone may have booked these dates while this form was open.
+    try {
+      const { data: latest } = await supabase.from('appointments')
+        .select('check_in, check_out, time, end_time, status')
+        .eq('account_id', accountId)
+        .in('status', ['pending', 'approved', 'confirmed', 'awaiting payment', 'paid'])
+      const fresh = latest || existingBookings
+      const msg = validateDateRange({ start, end, startTime, endTime, todayStr, settings, bookings: fresh })
+      if (msg) { setExistingBookings(fresh); setErrors(prev => ({ ...prev, dates: msg })); setStep(1); setSubmitting(false); return }
+    } catch (err) { console.warn('Availability re-check failed:', err) }
     const newTxn = 'TXN-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2,5).toUpperCase()
 
     const apt = {
       account_id: accountId,
       txn_code: newTxn,
-      customer_name: form.name,
-      customer_phone: form.contact,
-      customer_email: form.email,
+      customer_name: form.name.trim(),
+      customer_phone: form.contact.trim(),
+      customer_email: form.email.trim(),
       // Keep the address in the existing notes field until the appointments
       // table has a dedicated address column. BookingContext parses this for
       // appointment details and calendar city labels.
@@ -357,15 +273,8 @@ export default function BookingPage() {
         alert(`Failed to submit booking. ${error.message || 'Please try again.'}`)
         return
       }
-      if (accountId) {
-        const { error: notificationError } = await supabase.from('notifications').insert({
-          type: 'booking',
-          title: 'New booking request',
-          message: `${form.name || 'A customer'} submitted a booking request for ${fmt(start)}.`,
-          to_account_id: accountId,
-        })
-        if (notificationError) console.warn('Booking notification error:', notificationError)
-      }
+      // The provider's "new booking" notification is created by a database trigger
+      // (supabase/secure_booking_notifications.sql), not from this public page.
       setTxn(newTxn)
     } catch (err) {
       console.error('Booking error:', err)
@@ -405,6 +314,14 @@ export default function BookingPage() {
 
   const inp = (key) => `w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 ${errors[key] ? 'border-red-400 focus:ring-red-300' : 'border-gray-200 focus:ring-blue-300'}`
   const shapeClass = general.logoShape === 'circle' ? 'rounded-full' : general.logoShape === 'square' ? 'rounded-xl' : 'rounded-lg'
+
+  if (notFound) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6 text-center">
+        <div><h1 className="text-xl font-bold text-gray-800 mb-2">Booking page not found</h1><p className="text-sm text-gray-500">This booking link is invalid or no longer available.</p></div>
+      </div>
+    )
+  }
 
   return (
     <div className="booking-public flex flex-col min-h-screen" style={{ background: theme.secondary, '--booking-primary': theme.primary, '--booking-text': theme.text, '--booking-tint': theme.secondary }}>
@@ -561,7 +478,7 @@ export default function BookingPage() {
             {step === 1 && <section aria-labelledby="booking-dates-title" className="space-y-5">
               <div><h3 id="booking-dates-title" className="text-lg md:text-xl font-bold text-gray-900">When do you need care?</h3><p className="text-sm text-gray-500 mt-1">Select check-in and check-out dates. You can adjust the times below.</p></div>
               <div className="grid grid-cols-1 md:grid-cols-[1.1fr_0.9fr] gap-4 items-start">
-                <MiniCalendar primaryColor={theme.primary} selectedStart={start} selectedEnd={end} onSelect={date => { handleSelect(date); setErrors(prev => ({ ...prev, dates: '' })) }} hours={hours} existingBookings={existingBookings} allowOverlap={allowOverlap} />
+                <MiniCalendar primaryColor={theme.primary} selectedStart={start} selectedEnd={end} onSelect={date => { handleSelect(date); setErrors(prev => ({ ...prev, dates: '' })) }} hours={hours} existingBookings={existingBookings} allowOverlap={allowOverlap} blockedDates={settings.blockedDates} />
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 gap-3">
                   {[
                     ['Check-in', start, startTime, setStartTime],
