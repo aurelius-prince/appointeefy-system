@@ -34,11 +34,9 @@ function PriceCard({ name, price, period, regular, saving, details, highlight })
 export default function ClientHome() {
   const { user } = useAuth()
   const { plans } = usePlans()
-  if (user) {
-    const destination = user.needsOnboarding
-      ? '/onboarding'
-      : user.role === 'superadmin' ? '/superadmin/dashboard' : '/dashboard'
-    return <Navigate to={destination} replace />
+  // Superadmins stay on the public landing page; their area is only reached by its own URL.
+  if (user && user.role !== 'superadmin') {
+    return <Navigate to={user.needsOnboarding ? '/onboarding' : '/dashboard'} replace />
   }
   const monthly = Number(plans.monthly ?? 199)
   const annual = Number(plans.annual ?? 1799)

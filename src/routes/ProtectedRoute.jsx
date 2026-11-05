@@ -6,11 +6,10 @@ export function ProtectedRoute({ children, role }) {
 
   if (loading) return null
 
-  if (!user) {
-    // Redirect to correct login page based on role required
-    if (role === 'superadmin') return <Navigate to="/superadmin/login" replace />
-    return <Navigate to="/login" replace />
-  }
+  // Do not reveal the superadmin area to anyone else.
+  if (role === 'superadmin' && user?.role !== 'superadmin') return <Navigate to="/" replace />
+
+  if (!user) return <Navigate to="/login" replace />
 
   // Only redirect to onboarding if NOT superadmin and hasn't set up account yet
   if (user.needsOnboarding && user.role !== 'superadmin') {
