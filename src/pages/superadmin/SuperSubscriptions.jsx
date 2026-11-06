@@ -33,9 +33,10 @@ const insertManualPayment = async (account, plan, amount) => {
 }
 
 export default function SuperSubscriptions() {
-  const { plans, loading: plansLoading } = usePlans()
+  const { plans, loading: plansLoading, refresh: refreshPlans } = usePlans()
   const [editingPlan, setEditingPlan] = useState(null) // { id, price }
   const [savingPlan, setSavingPlan] = useState(false)
+  const [planError, setPlanError] = useState('')
   const [accounts, setAccounts] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -47,9 +48,14 @@ export default function SuperSubscriptions() {
 
   const handleSavePlan = async () => {
     if (!editingPlan) return
+    const price = Number(editingPlan.price)
+    if (!Number.isFinite(price) || price <= 0) { setPlanError('Enter a price greater than zero.'); return }
     setSavingPlan(true)
-    await supabase.from('plans').update({ price: Number(editingPlan.price) }).eq('id', editingPlan.id)
+    setPlanError('')
+    const { data, error } = await supabase.from('plans').update({ price }).eq('id', editingPlan.id).select('id')
     setSavingPlan(false)
+    if (error || !data?.length) { setPlanError('The price could not be saved. Please try again.'); return }
+    await refreshPlans()
     setEditingPlan(null)
   }
 
@@ -114,6 +120,7 @@ export default function SuperSubscriptions() {
   return (
     <div>
       <PageHeader title="Subscription Management" subtitle="Manage account subscriptions" />
+      {planError && <p role="alert" className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{planError}</p>}
 
       {/* Plan Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">

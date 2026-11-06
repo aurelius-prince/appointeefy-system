@@ -4,6 +4,7 @@ import { CheckCircle, PawPrint, Clock, PhilippinePeso } from 'lucide-react'
 import AppLogo from '../../assets/Logo.png'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
+import { normalizeSettings, saveSettings, fetchSettingsByAccount } from '../../lib/bookingSettings'
 
 const SERVICE_TYPES = [
   { value: 'Pet Sitting', label: 'Pet Care Services' },
@@ -84,44 +85,66 @@ export default function Onboarding() {
         .replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
       const accountCode = 'APF-' + String(Date.now()).slice(-5)
 
-      // Create account
-      const { data: account, error: accErr } = await supabase
-        .from('accounts')
-        .insert({
-          account_code: accountCode,
-          name: form.business_name.trim(),
-          email: user.email,
-          phone: form.phone.trim(),
-          business_type: 'Pet Sitting',
-          slug,
-          status: 'waitlisted',
-        })
-        .select().single()
+      // Every step below checks for what an earlier, half-finished attempt already created,
+      // so pressing the button again after an error is safe and never makes a duplicate.
+      const existingAccount = await supabase.from('accounts').select('id').eq('email', user.email).maybeSingle()
+      if (existingAccount.error) throw existingAccount.error
+      let account = existingAccount.data
+      if (!account) {
+        const { data, error: accErr } = await supabase
+          .from('accounts')
+          .insert({
+            account_code: accountCode,
+            name: form.business_name.trim(),
+            email: user.email,
+            phone: form.phone.trim(),
+            business_type: 'Pet Sitting',
+            slug,
+            status: 'waitlisted',
+          })
+          .select('id').single()
+        if (accErr) throw accErr
+        account = data
+      }
 
-      if (accErr) throw accErr
+      const existingUser = await supabase.from('users').select('id').eq('email', user.email).maybeSingle()
+      if (existingUser.error) throw existingUser.error
+      if (!existingUser.data) {
+        const { error: userErr } = await supabase
+          .from('users')
+          .insert({
+            account_id: account.id,
+            name: user.name || user.email,
+            email: user.email,
+            role: 'admin',
+          })
+        if (userErr) throw userErr
+      }
 
-      // Create user profile
-      const { error: userErr } = await supabase
-        .from('users')
-        .insert({
+      const existingService = await supabase.from('services').select('id').eq('account_id', account.id).limit(1)
+      if (existingService.error) throw existingService.error
+      if (!existingService.data?.length) {
+        const { error: serviceErr } = await supabase.from('services').insert({
           account_id: account.id,
-          name: user.name || user.email,
-          email: user.email,
-          role: 'admin',
+          name: 'Pet Sitting',
+          price: Number(form.price),
+          duration: Number(form.duration),
+          description: form.desc?.trim() || '',
+          pricing_type: form.pricingType,
+          max_pets: Number(form.max) || 10,
+          mixed_types: true,
         })
-      if (userErr) throw userErr
+        if (serviceErr) throw serviceErr
+      }
 
-      // Create Pet Sitting service
-      await supabase.from('services').insert({
-        account_id: account.id,
-        name: 'Pet Sitting',
-        price: Number(form.price),
-        duration: Number(form.duration),
-        description: form.desc?.trim() || '',
-        pricing_type: form.pricingType,
-        max_pets: Number(form.max) || 10,
-        mixed_types: true,
-      })
+      // Give the public booking link the business name from day one (visitors cannot read the account name).
+      try {
+        if (!(await fetchSettingsByAccount(supabase, account.id))) {
+          await saveSettings(supabase, account.id, normalizeSettings({ general: { businessName: form.business_name.trim() } }))
+        }
+      } catch (settingsErr) {
+        console.warn('Booking page settings were not created; the provider can save them from the editor.', settingsErr)
+      }
 
       // Update auth metadata
       await supabase.auth.updateUser({

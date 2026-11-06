@@ -76,7 +76,7 @@ export default function AdminSubscription() {
     supabase.from('accounts').select('*').eq('id', accountId).single()
       .then(({ data }) => { if (data) setAccount(data) })
     refreshPayments()
-    supabase.from('discounts').select('*').eq('active', true)
+    supabase.from('discounts').select('*').eq('is_active', true)
       .then(({ data }) => { if (data) setDiscounts(data) })
   }, [accountId, refreshPayments])
 
@@ -159,9 +159,10 @@ export default function AdminSubscription() {
     const found = discounts.find(
       (d) =>
         d.code === discountCode.trim().toUpperCase() &&
-        d.active &&
-        new Date(d.expiry + 'T00:00:00') > new Date() &&
-        d.used < d.limit
+        d.is_active &&
+        // The code is valid through the whole expiry day, the same rule the database applies.
+        new Date(d.expiry_date + 'T23:59:59') >= new Date() &&
+        (d.used_count || 0) < (d.usage_limit || 0)
     )
     if (!found) { setDiscountError('Invalid or expired discount code.'); return }
     if (found.applicable !== 'both' && found.applicable !== selectedPlan) {

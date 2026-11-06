@@ -107,6 +107,14 @@ export default function AdminLayout() {
     navigate('/login')
   }
 
+  // Let the Escape key close the notifications panel, like any other popup.
+  useEffect(() => {
+    if (!showNotifs) return undefined
+    const closeOnEscape = (event) => { if (event.key === 'Escape') setShowNotifs(false) }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [showNotifs])
+
   useEffect(() => {
     setMobileMoreOpen(false)
     setShowNotifs(false)
