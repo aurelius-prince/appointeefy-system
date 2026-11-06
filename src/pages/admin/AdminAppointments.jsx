@@ -155,6 +155,18 @@ export default function AdminAppointments() {
   const [resettingAppointments, setResettingAppointments] = useState(false)
   const [resetError, setResetError] = useState('')
   const [overpayModal, setOverpayModal] = useState(null) // { type, amt, excess, clearFn }
+  const [saveError, setSaveError] = useState('')
+
+  const persistBooking = async (updated) => {
+    const previous = selected
+    setSaveError('')
+    setSelected(updated)
+    const error = await updateBooking(updated)
+    if (error) {
+      setSelected(previous)
+      setSaveError('Your change could not be saved. Please try again.')
+    }
+  }
   const [rescheduleOpen, setRescheduleOpen] = useState(false)
   const [rescheduleDates, setRescheduleDates] = useState({ start: '', end: '' })
   const [rescheduleMonth, setRescheduleMonth] = useState(new Date())
@@ -239,8 +251,7 @@ export default function AdminAppointments() {
     if (!rescheduleDates.start || !rescheduleDates.end || rescheduleDates.end < rescheduleDates.start) return
     pushHistory(selected)
     const updated = addLog({ ...selected, date: rescheduleDates.start, checkIn: rescheduleDates.start, checkOut: rescheduleDates.end, status: 'pending' }, `Rescheduled to ${rescheduleDates.start} – ${rescheduleDates.end}`)
-    updateBooking(updated)
-    setSelected(updated)
+    persistBooking(updated)
     setRescheduleOpen(false)
   }
 
@@ -270,8 +281,7 @@ export default function AdminAppointments() {
     const prev = stack[stack.length - 1]
     historyRef.current = stack.slice(0, -1)
     setHasHistory(historyRef.current.length > 0)
-    updateBooking(prev)
-    setSelected(prev)
+    persistBooking(prev)
   }
 
   const addLog = (appt, msg) => ({
@@ -284,8 +294,7 @@ export default function AdminAppointments() {
     if (isNaN(val) || val < 0) return
     pushHistory(selected)
     const updated = addLog({ ...selected, finalPrice: val, priceNote: editNote }, `Price adjusted to ₱${val.toLocaleString()}${editNote ? ` — ${editNote}` : ''}`)
-    updateBooking(updated)
-    setSelected(updated)
+    persistBooking(updated)
     setPriceEditing(false)
   }
 
@@ -313,8 +322,7 @@ export default function AdminAppointments() {
     )
     if (additional > 0) updated = addLog(updated, 'Additional recorded: ₱' + additional.toLocaleString())
     const final = { ...updated, payments, additional: additional > 0 ? additional : undefined }
-    updateBooking(final)
-    setSelected(final)
+    persistBooking(final)
     clearFn()
     setEditingPayment((v) => ({ ...v, [type]: false }))
     setOverpayModal(null)
@@ -346,8 +354,7 @@ export default function AdminAppointments() {
     const newStatus = confirmStatus
     pushHistory(selected)
     const updated = addLog({ ...selected, status: newStatus }, `Status changed to ${newStatus}`)
-    updateBooking(updated)
-    setSelected(updated)
+    persistBooking(updated)
     setConfirmStatus(null)
   }
 
@@ -496,6 +503,12 @@ export default function AdminAppointments() {
 
   return (
     <div className="appointments-page h-full min-h-0 flex flex-col overflow-hidden">
+      {saveError && (
+        <div role="alert" className="fixed top-4 left-1/2 z-[100] flex max-w-[90vw] -translate-x-1/2 items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-lg">
+          <span>{saveError}</span>
+          <button type="button" aria-label="Dismiss error" onClick={() => setSaveError('')} className="font-semibold">×</button>
+        </div>
+      )}
       <PageHeader title="Appointments" subtitle="Manage and track all your appointments" action={
         <button type="button" onClick={() => setResetAppointmentsOpen(true)} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-100">
           Reset Test Appointments

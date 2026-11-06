@@ -126,6 +126,7 @@ Supabase is used for authentication, database access, storage, and selected real
 - **Permissions:** Provider route protected by admin role; storage/database policies need verification.
 - **Dependencies:** `ServiceContext`, Supabase Storage, public booking page key names.
 - **Status:** Partially Implemented. Settings are browser-specific rather than clearly persisted per provider in Supabase.
+- **2026-11-06 test (localhost, Petsi):** Settings now save to `booking_page_settings`. Theme, working days, blocked dates, service price, and pet types saved in the editor appeared on `/book/petsi` in a separate signed-out browser. Old settings move to the database only after the provider opens and saves the editor in the browser that holds them. Logo/image upload and mobile view: **Needs Verification**.
 
 ### PROV-004 — Service Management
 
@@ -147,6 +148,8 @@ Supabase is used for authentication, database access, storage, and selected real
 - **Validation:** Numeric payment and price checks; overpayment confirmation flow; status actions depend on current status.
 - **Dependencies:** Booking records from `BookingContext`, provider account ID, invoice data.
 - **Status:** Implemented for Supabase-backed bookings. Status naming consistency with public overlap logic needs verification.
+- **2026-11-06 update:** The database status rule did not allow `paid`, so marking a booking Paid failed silently while the screen showed Paid. `supabase/appointments_paid_status.sql` (applied to production) allows `paid`, and the page now shows "Your change could not be saved" and restores the previous state when any save fails.
+- **2026-11-06 test (localhost, Petsi, labeled `TEST Claude` bookings):** Approve, conflict detection ("For Reschedule" with approval blocked), reschedule, price adjustment, receipt, downpayment, remaining balance, overpayment warning, Paid, and cancel all saved correctly. Completed stays blocked until the check-out time has passed, so it was not reached with future test dates. Total price does not change with the number of pets (Dog x2 cost the same as one pet): **Needs Verification** whether this is intended. Delete and "Reset Test Appointments" were not run on production data.
 
 ### PROV-006 — Customers
 
