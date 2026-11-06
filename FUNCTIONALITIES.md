@@ -126,7 +126,7 @@ Supabase is used for authentication, database access, storage, and selected real
 - **Permissions:** Provider route protected by admin role; storage/database policies need verification.
 - **Dependencies:** `ServiceContext`, Supabase Storage, public booking page key names.
 - **Status:** Partially Implemented. Settings are browser-specific rather than clearly persisted per provider in Supabase.
-- **2026-11-06 test (localhost, Petsi):** Settings now save to `booking_page_settings`. Theme, working days, blocked dates, service price, and pet types saved in the editor appeared on `/book/petsi` in a separate signed-out browser. Old settings move to the database only after the provider opens and saves the editor in the browser that holds them. Logo/image upload and mobile view: **Needs Verification**.
+- **2026-11-06 test (localhost, Petsi):** Settings now save to `booking_page_settings`. Theme, working days, blocked dates, service price, and pet types saved in the editor appeared on `/book/petsi` in a separate signed-out browser. Old browser-only settings now save to the database automatically the first time the provider opens the editor in the browser that holds them, but only when their business name matches the account name or slug (the old keys were shared by every account on one browser). Otherwise the provider must review and press Save. The automatic save path was checked with unit tests and the account-matching rule in a real browser; a full first-open run on an account without saved settings is **Needs Verification**. Logo/image upload and mobile view: **Needs Verification**.
 
 ### PROV-004 — Service Management
 

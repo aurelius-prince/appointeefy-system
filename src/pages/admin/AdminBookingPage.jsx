@@ -8,7 +8,7 @@ import AdminServices from './AdminServices'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
-import { DEFAULT_SETTINGS, DEFAULT_HOURS as BP_DEFAULT_HOURS, normalizeSettings, fetchSettingsByAccount, saveSettings, readLegacySettings, slugify } from '../../lib/bookingSettings'
+import { DEFAULT_SETTINGS, DEFAULT_HOURS as BP_DEFAULT_HOURS, normalizeSettings, fetchSettingsByAccount, saveSettings, readLegacySettings, legacyBelongsToAccount, slugify } from '../../lib/bookingSettings'
 import ReactCrop, { centerCrop, makeAspectCrop } from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
 import EasyCrop from 'react-easy-crop'
@@ -1084,7 +1084,17 @@ export default function AdminBookingPage() {
           const hasLegacy = Object.keys(legacy).length > 0
           const base = normalizeSettings({ ...legacy, ...(hasLegacy ? {} : { general: { businessName: accountRes.data?.name || DEFAULT_SETTINGS.general.businessName } }) })
           applySettings(base)
-          if (hasLegacy) setDirty(true) // prompt the provider to save the migrated settings to the database
+          if (hasLegacy && legacyBelongsToAccount(legacy, accountRes.data)) {
+            // Save the old browser-only design right away so the shared link shows it on every device.
+            try {
+              const clean = await saveSettings(supabase, accountId, base)
+              if (!cancelled) { applySettings(clean); setSaved(true); setTimeout(() => setSaved(false), 2000) }
+            } catch (err) {
+              if (!cancelled) { setDirty(true); setSaveError(err?.message || 'Failed to save. Please try again.') }
+            }
+          } else if (hasLegacy) {
+            setDirty(true) // settings from another account on this browser: let the provider review before saving
+          }
         }
       } catch (err) {
         if (!cancelled) setLoadError(err?.message || 'Could not load booking page settings.')

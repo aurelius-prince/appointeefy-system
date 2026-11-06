@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   DEFAULT_SETTINGS, normalizeSettings, deepMerge, normalizeBlockedDates, slugify, isDateBlocked,
-  readLegacySettings, fetchSettingsByAccount, saveSettings,
+  readLegacySettings, legacyBelongsToAccount, fetchSettingsByAccount, saveSettings,
 } from '../src/lib/bookingSettings.js'
 
 // Minimal in-memory Supabase fake: records upserts and serves them back (simulates a different browser/device).
@@ -69,6 +69,15 @@ test('readLegacySettings migrates old localStorage and skips corrupt entries', (
   assert.deepEqual(out.general, { businessName: 'Old' })
   assert.equal(out.allowOverlap, true)
   assert.ok(!('hours' in out))
+})
+
+test('legacyBelongsToAccount only accepts the signed-in account\'s own old settings', () => {
+  assert.ok(legacyBelongsToAccount({ general: { businessName: 'Petsi' } }, { name: 'Petsi', slug: 'petsi' }))
+  assert.ok(legacyBelongsToAccount({ general: { businessName: ' petsi ' } }, { name: 'PETSI', slug: 'x' }))
+  assert.ok(legacyBelongsToAccount({ general: { businessName: "Kysha's Pet Sunctuary" } }, { name: 'Other', slug: 'kyshas-pet-sunctuary' }))
+  assert.ok(!legacyBelongsToAccount({ general: { businessName: "Juan's Pet Care" } }, { name: 'Petsi', slug: 'petsi' }))
+  assert.ok(!legacyBelongsToAccount({ hours: { Monday: true } }, { name: 'Petsi', slug: 'petsi' }))
+  assert.ok(!legacyBelongsToAccount({ general: { businessName: 'Petsi' } }, null))
 })
 
 test('saveSettings writes to the DB and another device reads the same data (the original bug)', async () => {

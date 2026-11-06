@@ -81,6 +81,15 @@ export const readLegacySettings = (storage) => {
   return out
 }
 
+// The old browser keys were shared by every account signed in on the same browser, so only treat them as this
+// account's settings when the saved business name matches the account name or booking slug.
+export const legacyBelongsToAccount = (legacy, account) => {
+  const name = String(legacy?.general?.businessName || '').trim()
+  if (!name || !account) return false
+  return name.toLowerCase() === String(account.name || '').trim().toLowerCase()
+    || (!!account.slug && slugify(name) === account.slug)
+}
+
 // ── Supabase persistence (client is injected so this stays testable) ─────────────────────────
 
 export const fetchSettingsByAccount = async (supabase, accountId) => {
