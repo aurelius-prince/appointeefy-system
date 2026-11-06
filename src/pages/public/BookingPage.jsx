@@ -202,6 +202,10 @@ export default function BookingPage() {
     ? (services.find(s => s.id === uniqueServices[0].serviceId)?.pricingType || 'per_day')
     : 'per_day'
   const totalPrice = String(Math.round(calcTotalPrice({ services, selected: selectedServices, days, hours: totalHours })))
+  // Hourly services are priced and shown by hours; everything else by days.
+  const durationLabel = primaryPricingType === 'per_hour'
+    ? `${totalHours} hr${totalHours === 1 ? '' : 's'}`
+    : `${days} day${days === 1 ? '' : 's'}`
   const servicesText = selectedServices.filter(s => s.count > 0).map(s => `${s.type} (${s.name}) x${s.count}`).join(', ')
 
   const validate = () => validateCustomer(form, booking.fields, totalPets)
@@ -305,7 +309,7 @@ export default function BookingPage() {
   }
 
   const fbMessage = txn ? encodeURIComponent(
-    `Hi! I'd like to confirm my booking.\n\nTransaction ID: ${receiptNo}\nName: ${form.name}\nServices: ${servicesText}\nDays: ${days} day${days > 1 ? 's' : ''}\nEst. Total: ₱${totalPrice}\nCheck-in: ${fmt(start)} ${startTime}\nCheck-out: ${fmt(end)} ${endTime}\nContact: ${form.contact}\n${form.notes ? `Notes: ${form.notes}` : ''}`
+    `Hi! I'd like to confirm my booking.\n\nTransaction ID: ${receiptNo}\nName: ${form.name}\nServices: ${servicesText}\nDuration: ${durationLabel}\nEst. Total: ₱${totalPrice}\nCheck-in: ${fmt(start)} ${startTime}\nCheck-out: ${fmt(end)} ${endTime}\nContact: ${form.contact}\n${form.notes ? `Notes: ${form.notes}` : ''}`
   ) : ''
 
   const fbLink = footer.facebook
@@ -557,7 +561,7 @@ export default function BookingPage() {
 
             {step === 3 && <section aria-labelledby="booking-details-title" className="space-y-5">
               <div><h3 id="booking-details-title" className="text-lg md:text-xl font-bold text-gray-900">How can the provider reach you?</h3><p className="text-sm text-gray-500 mt-1">Your details are shared with the provider for this booking request.</p></div>
-              <div className="rounded-xl bg-gray-50 border border-gray-100 p-3 text-sm text-gray-600"><p><strong className="text-gray-800">Dates:</strong> {fmt(start)} – {fmt(end)} ({days} day{days === 1 ? '' : 's'})</p><p className="mt-1"><strong className="text-gray-800">Pets:</strong> {servicesText}</p><p className="mt-1 font-semibold" style={{ color: theme.primary }}>Estimated total: ₱{Number(totalPrice).toLocaleString()}</p></div>
+              <div className="rounded-xl bg-gray-50 border border-gray-100 p-3 text-sm text-gray-600"><p><strong className="text-gray-800">Dates:</strong> {fmt(start)} – {fmt(end)} ({durationLabel})</p><p className="mt-1"><strong className="text-gray-800">Pets:</strong> {servicesText}</p><p className="mt-1 font-semibold" style={{ color: theme.primary }}>Estimated total: ₱{Number(totalPrice).toLocaleString()}</p></div>
               {[['name','Full name','text','name'],['contact','Contact number','tel','tel'],['address','Address','text','street-address']].map(([key, label, type, autoComplete]) => <div key={key}><label htmlFor={`booking-${key}`} className="text-sm font-medium text-gray-700 mb-1.5 block">{label}<span className="text-red-600"> *</span></label><input id={`booking-${key}`} type={type} autoComplete={autoComplete} value={form[key]} onChange={e => { setForm(prev => ({ ...prev, [key]: e.target.value })); setErrors(prev => ({ ...prev, [key]: '' })) }} className={`${inp(key)} min-h-12`} />{errors[key] && <p role="alert" className="text-sm text-red-600 mt-1">{errors[key]}</p>}</div>)}
               {(booking.fields?.email?.show ?? true) && <div><label htmlFor="booking-email" className="text-sm font-medium text-gray-700 mb-1.5 block">Email{booking.fields?.email?.required && <span className="text-red-600"> *</span>}</label><input id="booking-email" type="email" autoComplete="email" value={form.email} onChange={e => { setForm(prev => ({ ...prev, email: e.target.value })); setErrors(prev => ({ ...prev, email: '' })) }} className={`${inp('email')} min-h-12`} />{errors.email && <p role="alert" className="text-sm text-red-600 mt-1">{errors.email}</p>}</div>}
               {(booking.fields?.facebook?.show ?? booking.showFacebook) && <div><label htmlFor="booking-facebook" className="text-sm font-medium text-gray-700 mb-1.5 block">Facebook name or link{booking.fields?.facebook?.required && <span className="text-red-600"> *</span>}</label><input id="booking-facebook" value={form.facebook} onChange={e => { setForm(prev => ({ ...prev, facebook: e.target.value })); setErrors(prev => ({ ...prev, facebook: '' })) }} className={`${inp('facebook')} min-h-12`} />{errors.facebook && <p role="alert" className="text-sm text-red-600 mt-1">{errors.facebook}</p>}</div>}
@@ -593,7 +597,7 @@ export default function BookingPage() {
                 {[
                   ['Customer', form.name],
                   ['Service', servicesText],
-                  ['Duration', `${days} day${days > 1 ? 's' : ''}`],
+                  ['Duration', durationLabel],
                   ['Check-in', `${fmt(start)} ${startTime}`],
                   ['Check-out', `${fmt(end)} ${endTime}`],
                   ['Contact', form.contact],
